@@ -34,7 +34,7 @@ content-type: application/json
 
 Si devuelve HTML, refrescar `cookie.txt`.
 
-### 2. Refresh frecuente solo Presidencial en `Pendiente`
+### 2.A. Refresh frecuente solo Presidencial en `Pendiente`
 
 ```bash
 python3 refresh_presidencial_only_v2.py \
@@ -43,6 +43,18 @@ python3 refresh_presidencial_only_v2.py \
   --cookie-file ./cookie.txt \
   --rps 0.3 \
   --estado Pendiente
+```
+
+### 2.B. Refresh frecuente Presidencial en `Pendiente` y `Para envío al JEE`
+
+```bash
+python3 refresh_presidencial_only_v2.py \
+  --out ./data \
+  --db ./data/state/onpe_scraper.sqlite \
+  --cookie-file ./cookie.txt \
+  --rps 1 \
+  --estado Pendiente \
+  --estado "Para envío al JEE"
 ```
 
 ### 3. Reconstruir consolidado
