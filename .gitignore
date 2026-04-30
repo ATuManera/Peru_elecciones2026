@@ -1,0 +1,47 @@
+snapshots/
+__pycache__/
+*.pyc
+.env
+.venv/
+dist/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+# Datos generados por el scraper ONPE.
+data/raw_json/
+data/logs/
+data/state/*.sqlite*
+data/state/*.bak
+data/manifests/**/*
+!data/manifests/
+!data/manifests/**/
+!data/manifests/**/*.csv
+
+# Salidas grandes/reconstruibles. Conservar fuera de git salvo publicación deliberada.
+data/output/**/*
+!data/output/
+!data/output/**/
+!data/output/**/*.csv
+data/reports/**/*
+!data/reports/
+!data/reports/**/
+!data/reports/**/*.csv
+data/*.sqlite*
+
+# Credenciales/sesiones locales.
+cookie.txt
+cookie.old
+
+# Compatibilidad con ejecuciones antiguas fuera de ./data.
+raw_json/
+
+# Pipeline estadístico legado fuera del repo simplificado.
+src/fraud_detector/
+tests/
+data_dictionary/
+docs/superpowers/
+snapshots/
+config.toml
+docker-compose.yml

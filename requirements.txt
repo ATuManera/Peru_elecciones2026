@@ -1,0 +1,8 @@
+# Los scripts operativos principales usan solo librerías estándar de Python
+# y el binario local `curl`.
+#
+# Dependencias opcionales para auditorías temporales como
+# analyze_timeline_presidencial.py:
+numpy>=1.26
+pandas>=2.2
+matplotlib>=3.8
