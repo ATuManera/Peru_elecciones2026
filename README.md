@@ -1,5 +1,9 @@
 # ONPE Actas Scraper - Elecciones 2026
 
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](pyproject.toml)
+
 Herramientas operativas para descargar actas desde la API pública de ONPE, reconstruir un CSV consolidado y separar los resultados por tipo de elección.
 
 Este repositorio queda enfocado en cuatro tareas:
