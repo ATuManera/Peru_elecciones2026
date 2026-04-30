@@ -9,6 +9,12 @@ Este repositorio queda enfocado en cuatro tareas:
 3. Reconstruir `mesas_consolidado.csv` desde los JSON descargados.
 4. Separar el consolidado en archivos por elección.
 
+## Disponibilidad Pública de los Datos
+
+La información resultante se pone a disposición pública con fines de transparencia técnica, investigación cívica, desarrollo de analítica electoral y estudio independiente de patrones que pudieran ameritar revisión adicional.
+
+Los archivos publicados deben entenderse como una transformación reproducible de información obtenida desde la aplicación pública de resultados de ONPE. Su publicación no constituye certificación oficial, auditoría electoral, conclusión sobre irregularidades ni atribución de responsabilidad. Cualquier análisis derivado debe contrastarse con las fuentes oficiales, las actas correspondientes y el marco normativo aplicable.
+
 ## Licencia
 
 Este proyecto se publica bajo la **Apache License 2.0**.
@@ -209,6 +215,30 @@ curl -L \
 ```
 
 Nota: los archivos de resultados están versionados con extensión `.csv`. GitHub puede mostrarlos en el navegador como texto por el tipo de visualización del sitio o por Git LFS, pero el archivo descargado conserva la extensión y estructura CSV. Para archivos grandes, se recomienda usar el enlace con `?download=1`, `curl -L` o la opción del navegador "Guardar enlace como...".
+
+## Campos del CSV Presidencial
+
+El archivo `data/output/por_votacion/mesas_presidencial.csv` contiene una fila por mesa de sufragio para la elección presidencial (`idEleccion = 10`). Es un CSV plano generado desde los JSON de ONPE, por lo que algunas estructuras anidadas del origen se representan como familias de columnas repetitivas.
+
+Resumen ejecutivo de campos:
+
+| Familia de campos | Columnas | Descripción para analítica |
+| --- | --- | --- |
+| Identificación de mesa | `codigoMesa`, `id`, `idEleccion` | Identifican la mesa y el registro interno de la elección. `codigoMesa` debe tratarse como texto para conservar ceros a la izquierda. |
+| Ubicación electoral | `ubigeoNivel01`, `ubigeoNivel02`, `ubigeoNivel03`, `centroPoblado`, `nombreLocalVotacion` | Permiten agrupar resultados por ámbito geográfico y local de votación. Los códigos de ubigeo deben conservarse como texto. |
+| Totales de participación | `totalElectoresHabiles`, `totalVotosEmitidos`, `totalVotosValidos` | Métricas principales por mesa. Sirven para calcular participación, votos válidos y consistencias básicas. |
+| Estado del acta | `estadoActa`, `estadoComputo`, `codigoEstadoActa`, `descripcionEstadoActa`, `estadoActaResolucion`, `estadoDescripcionActaResolucion`, `descripcionSubEstadoActa` | Describen la situación operativa y de cómputo del acta al momento de la descarga o refresh. Son claves para separar mesas contabilizadas, pendientes, observadas o enviadas a revisión. |
+| Votos por organización política | `detalle_1_*` a `detalle_38_*` | Cada bloque representa una opción presidencial en el orden publicado por ONPE. Incluye `descripcion`, `cdocumentoIdentidad`, `nposicion` y `nvotos`. Para agregaciones, usar principalmente `detalle_N_descripcion`, `detalle_N_nposicion` y `detalle_N_nvotos`. |
+| Votos especiales | `detalle_80_*`, `detalle_81_*`, `detalle_82_*` | Bloques reservados para `VOTOS EN BLANCO`, `VOTOS NULOS` y `VOTOS IMPUGNADOS`, respectivamente. Ayudan a reconciliar `totalVotosEmitidos` con votos válidos y no válidos. |
+| Línea de tiempo del acta | `lineaTiempo_1_*` a `lineaTiempo_31_*` | Secuencia de eventos registrada para el acta. Cada bloque puede incluir `codigoEstadoActa`, `descripcionEstadoActa`, `descripcionEstadoActaResolucion` y `fechaRegistro`. Sirve para análisis de tiempos, transiciones y estados finales. |
+
+Consideraciones de uso:
+
+- Los campos numéricos pueden llegar vacíos cuando ONPE no publica un valor para una mesa o estado específico; conviene normalizarlos antes de calcular.
+- Las columnas `detalle_N_nvotos` de organizaciones políticas representan votos válidos por opción. Los bloques `detalle_80`, `detalle_81` y `detalle_82` representan votos no válidos o especiales.
+- Para análisis territoriales, mantener `codigoMesa` y los `ubigeo*` como texto evita perder ceros iniciales.
+- Para estudios de potenciales anomalías, separar primero las mesas por `descripcionEstadoActa` o `codigoEstadoActa`; comparar mesas en estados distintos puede producir conclusiones erróneas.
+- La línea de tiempo debe interpretarse como eventos observados en la respuesta pública disponible al momento de la descarga, no como una bitácora oficial completa ni inmutable.
 
 ## Cookie
 
