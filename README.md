@@ -70,6 +70,38 @@ onpe-split-votacion --help
 onpe-refresh-presidencial --help
 ```
 
+## Uso de la API de ONPE
+
+Este proyecto utiliza el endpoint que consume la propia aplicación pública de resultados de ONPE para consultar actas por código de mesa.
+
+La forma de uso documentada aquí **no proviene de una especificación oficial publicada por ONPE**. Fue investigada mediante revisión técnica de la comunicación interna entre el frontend público de ONPE y su backend, observando las solicitudes HTTP que realiza la aplicación al consultar actas. Por esa razón, esta integración debe considerarse una adaptación operativa y no un contrato formal de API: el endpoint, sus headers, el esquema de respuesta o los requisitos de sesión pueden cambiar sin aviso.
+
+Endpoint observado:
+
+```text
+GET https://resultadoelectoral.onpe.gob.pe/presentacion-backend/actas/buscar/mesa?codigoMesa=<codigoMesa>
+```
+
+Ejemplo:
+
+```text
+https://resultadoelectoral.onpe.gob.pe/presentacion-backend/actas/buscar/mesa?codigoMesa=000755
+```
+
+El parámetro `codigoMesa` debe enviarse como código de seis dígitos, con ceros a la izquierda cuando corresponda.
+
+Buenas prácticas aplicadas por este repositorio:
+
+- Usar la misma semántica de consulta que la aplicación pública: una mesa por solicitud.
+- Mantener una tasa de consultas conservadora mediante `--rps`.
+- Reanudar descargas con `--resume` para evitar repetir solicitudes innecesarias.
+- Guardar la respuesta original como JSON crudo en `data/raw_json/` para preservar trazabilidad.
+- Reconstruir los CSV desde los JSON descargados, en vez de depender de transformaciones no reproducibles.
+- Registrar estado local en SQLite para identificar mesas descargadas, inexistentes o pendientes de reintento.
+- No versionar cookies ni información de sesión. `cookie.txt` está excluido del repositorio.
+
+Algunas solicitudes pueden requerir una cookie vigente de navegación. Esa cookie debe obtenerse desde una sesión propia en el navegador y guardarse localmente en `cookie.txt`; no debe publicarse ni compartirse en commits, issues o documentación.
+
 ## Flujo Principal
 
 ### 1. Descargar o reconstruir datos
