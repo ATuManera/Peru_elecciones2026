@@ -193,12 +193,14 @@ Directorios generados:
 - `data/raw_json/`: JSON crudos por mesa.
 - `data/state/onpe_scraper.sqlite`: estado local de descarga y control.
 - `data/output/mesas_consolidado.csv`: consolidado reconstruido.
-- `data/output/por_votacion/mesas_presidencial.csv`: detalle del resultado de la votación presidencial.
+- [`data/output/por_votacion/mesas_presidencial.csv`](https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/por_votacion/mesas_presidencial.csv): detalle del resultado de la votación presidencial. Click para descargar el CSV directamente.
 - `data/output/por_votacion/`: detalle del resto de elecciones en CSV separados por elección.
 - `data/reports/`: reportes básicos del scraper.
 - `data/manifests/`: manifiesto de descarga.
 
 Estos archivos son reconstruibles y pueden ser grandes, por eso están fuera de git por defecto.
+
+Nota: los archivos de resultados están versionados con extensión `.csv`. GitHub puede mostrarlos en el navegador como texto por el tipo de visualización del sitio o por Git LFS, pero el archivo descargado conserva la extensión y estructura CSV.
 
 ## Cookie
 
