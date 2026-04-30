@@ -109,6 +109,18 @@ Genera:
 - `mesas_senadores_distrito_electoral_multiple.csv`
 - `mesas_senadores_distrito_electoral_unico.csv`
 
+El detalle del resultado de la votación presidencial está en:
+
+```text
+data/output/por_votacion/mesas_presidencial.csv
+```
+
+El detalle del resto de elecciones está en los demás CSV de:
+
+```text
+data/output/por_votacion/
+```
+
 ### 3. Refresh presidencial incremental
 
 Para refrescar solo mesas presidenciales pendientes:
@@ -149,7 +161,8 @@ Directorios generados:
 - `data/raw_json/`: JSON crudos por mesa.
 - `data/state/onpe_scraper.sqlite`: estado local de descarga y control.
 - `data/output/mesas_consolidado.csv`: consolidado reconstruido.
-- `data/output/por_votacion/`: CSV separados por elección.
+- `data/output/por_votacion/mesas_presidencial.csv`: detalle del resultado de la votación presidencial.
+- `data/output/por_votacion/`: detalle del resto de elecciones en CSV separados por elección.
 - `data/reports/`: reportes básicos del scraper.
 - `data/manifests/`: manifiesto de descarga.
 
