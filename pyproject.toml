@@ -24,6 +24,7 @@ onpe-scraper = "onpe_scraper:main"
 onpe-split-votacion = "split_mesas_por_votacion:main"
 onpe-refresh-presidencial = "refresh_presidencial_only_v2:main"
 onpe-build-ausentismo = "build_ausentismo_presidencial:main"
+onpe-analyze-ausentismo = "analyze_ausentismo_presidencial:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -33,6 +34,7 @@ build-backend = "hatchling.build"
 only-include = [
     "onpe_scraper.py",
     "build_ausentismo_presidencial.py",
+    "analyze_ausentismo_presidencial.py",
     "project_metadata.py",
     "refresh_presidencial_only_v2.py",
     "split_mesas_por_votacion.py",

@@ -75,6 +75,7 @@ Puedes ejecutar los scripts directamente:
 python3 onpe_scraper.py --help
 python3 split_mesas_por_votacion.py --help
 python3 refresh_presidencial_only_v2.py --help
+python3 analyze_ausentismo_presidencial.py --help
 ```
 
 O instalar los comandos locales:
@@ -90,6 +91,7 @@ onpe-scraper --help
 onpe-split-votacion --help
 onpe-refresh-presidencial --help
 onpe-build-ausentismo --help
+onpe-analyze-ausentismo --help
 ```
 
 ## Uso de la API de ONPE
@@ -236,6 +238,34 @@ python3 build_ausentismo_presidencial.py \
 
 La salida contiene una fila por mesa y año, con electores hábiles, votos emitidos, ausentes y tasa de ausentismo. Para 2006, 2011, 2016 y 2021 utiliza los archivos históricos oficiales de ONPE; para 2026 utiliza el CSV presidencial generado por este repositorio. Algunas mesas pueden tener campos centrales vacíos si el acta no cuenta con cómputo completo en la fuente disponible; esas filas se conservan para no alterar la cobertura territorial.
 
+### 5. Analizar exceso de ausentismo y escenarios contrafactuales
+
+Para ejecutar el análisis reproducible de ausentismo presidencial 2006-2026:
+
+```bash
+python3 analyze_ausentismo_presidencial.py
+```
+
+Genera salidas bajo:
+
+```text
+data/output/analisis_ausentismo/
+```
+
+y un reporte preliminar en:
+
+```text
+FINAL_REPORT.md
+```
+
+El análisis usa UBIGEO como unidad primaria y mesa como descomposición secundaria. Produce baselines corto 2011-2016, largo 2006-2011-2016, reciente 2016-2021 y robusto mediana + MAD. Los modelos de impacto de votos son contrafactuales: distribución nacional, distribución por UBIGEO y matching aproximado con variables disponibles.
+
+Disclaimer obligatorio del análisis:
+
+```text
+Estos resultados son estimaciones contrafactuales bajo supuestos explícitos. No constituyen evidencia de manipulación electoral, fraude ni causalidad. Su propósito es analítico y exploratorio.
+```
+
 ## Estructura de Datos
 
 Directorios y archivos principales:
@@ -247,6 +277,8 @@ Directorios y archivos principales:
 - [`data/output/por_votacion/mesas_presidencial.csv`](https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/por_votacion/mesas_presidencial.csv?download=1): detalle del resultado de la votación presidencial. Click para descargar el CSV directamente.
 - `data/output/por_votacion/`: detalle del resto de elecciones en CSV separados por elección.
 - [`data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`](https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv?download=1): tabla consolidada de ausentismo presidencial por mesa y año. Click para descargar el CSV directamente.
+- `data/output/analisis_ausentismo/`: resultados reproducibles del análisis de exceso de ausentismo, flags estadísticos para revisión y escenarios contrafactuales de impacto.
+- `FINAL_REPORT.md`: reporte final preliminar del análisis de ausentismo.
 - `data/reports/`: reportes básicos del scraper.
 - `data/manifests/`: manifiesto de descarga.
 

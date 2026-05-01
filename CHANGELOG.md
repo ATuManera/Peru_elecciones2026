@@ -4,6 +4,13 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 El proyecto sigue versionado semántico para el código y las herramientas operativas. Los CSV publicados pueden actualizarse entre versiones mediante refresh, rebuild y split; para reproducibilidad, citar también el commit usado.
 
+## Unreleased
+
+- Agrega `analyze_ausentismo_presidencial.py` para generar un flujo reproducible de análisis de ausentismo presidencial 2006-2026.
+- Publica salidas analíticas bajo `data/output/analisis_ausentismo/`: auditoría, agregados por mesa/UBIGEO, baselines, flags estadísticos, concentración geográfica, escenarios contrafactuales y sensibilidad.
+- Agrega `FINAL_REPORT.md` como reporte preliminar con disclaimer metodológico y límites de interpretación.
+- Documenta la operación del análisis en `README.md` y `README_OPERACION.md`.
+
 ## 0.2.0 - 2026-05-01
 
 - Agrega insumos históricos oficiales de ONPE para primera vuelta presidencial 2006, 2011, 2016 y 2021.

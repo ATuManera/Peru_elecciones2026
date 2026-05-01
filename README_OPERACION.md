@@ -93,6 +93,30 @@ Salida esperada:
 data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv
 ```
 
+### 6. Ejecutar análisis de ausentismo presidencial
+
+Cuando el consolidado de ausentismo esté actualizado, ejecutar:
+
+```bash
+python3 analyze_ausentismo_presidencial.py
+```
+
+Salidas esperadas:
+
+```text
+data/output/analisis_ausentismo/audit_checks.csv
+data/output/analisis_ausentismo/absenteeism_by_mesa.csv
+data/output/analisis_ausentismo/absenteeism_by_ubigeo.csv
+data/output/analisis_ausentismo/baselines_by_ubigeo.csv
+data/output/analisis_ausentismo/excess_absenteeism_flags.csv
+data/output/analisis_ausentismo/geographic_concentration.csv
+data/output/analisis_ausentismo/candidate_impact_scenarios.csv
+data/output/analisis_ausentismo/sensitivity_summary.csv
+FINAL_REPORT.md
+```
+
+Interpretar todo flag como señal estadística para revisión. Los escenarios de votos son contrafactuales y no constituyen evidencia de manipulación electoral, fraude ni causalidad.
+
 ## Flujo Ocasional
 
 ### Revisar Presidencial en `Para envío al JEE`
@@ -145,6 +169,8 @@ python3 refresh_presidencial_only_v2.py \
 - `./data/output/mesas_consolidado.csv`
 - `./data/output/por_votacion/mesas_presidencial.csv`
 - `./data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`
+- `./data/output/analisis_ausentismo/`
+- `./FINAL_REPORT.md`
 - `./data/state/onpe_scraper.sqlite`
 - `./cookie.txt`
 
