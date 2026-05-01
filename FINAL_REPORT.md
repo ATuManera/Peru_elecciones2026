@@ -8,8 +8,8 @@ Este reporte preliminar resume un flujo reproducible construido desde archivos v
 
 ## Reproducibilidad
 
-- Commit: `8c4c018ff37386fe2345a4c9d2059a8b04e4893d`
-- Fecha UTC de ejecucion: `2026-05-01T08:06:36.016619+00:00`
+- Commit: `e26740bdf8d1f4e14a0f4ef365c121cf77280cc3`
+- Fecha UTC de ejecucion: `2026-05-01T08:35:08.146913+00:00`
 - Directorio de outputs: `data/output/analisis_ausentismo`
 - Script: `analyze_ausentismo_presidencial.py`
 

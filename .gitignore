@@ -24,6 +24,9 @@ data/output/**/*
 !data/output/
 !data/output/**/
 !data/output/**/*.csv
+!data/output/analisis_ausentismo/config_run.yaml
+!data/output/analisis_ausentismo/manifest_run.json
+!data/output/analisis_ausentismo/assumptions.md
 data/reports/**/*
 !data/reports/
 !data/reports/**/

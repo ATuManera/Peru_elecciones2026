@@ -1092,7 +1092,7 @@ Baselines de robustez calculados en paralelo: corto (2011/16), largo (2006/11/16
 
 ## Decisiones no automatizables
 
-- Los años de baseline fueron elegidos por el diseño metodológico en `METHODOLOGY.md`;
+- Los años de baseline fueron elegidos por el diseño metodológico en `docs/analisis_ausentismo/METHODOLOGY.md`;
   no se optimizaron para producir ningún resultado específico.
 - El umbral de flag principal es z-robusto ≥ 3.5, conservador por diseño.
 
