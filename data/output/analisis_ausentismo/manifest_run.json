@@ -1,68 +1,50 @@
 {
-  "run_id": "c84e4256-df72-45e1-8c50-757b83401520",
-  "commit_hash": "e26740bdf8d1f4e14a0f4ef365c121cf77280cc3",
+  "run_id": "47105560-29b5-42e7-b132-2051e092ee98",
+  "commit_hash": "4833784f13d98cf1ea9ecf1937b1928df6c429be",
   "branch": "codex/analisis-ausentismo-2026-metodologia",
-  "fecha_inicio_utc": "2026-05-01T08:34:20.070786+00:00",
-  "fecha_fin_utc": "2026-05-01T08:35:08.168542+00:00",
-  "duracion_segundos": 48.1,
+  "fecha_ejecucion_utc": "2026-05-01T09:03:14.123060+00:00",
   "python_version": "3.14.3 (main, Feb  3 2026, 15:32:20) [Clang 17.0.0 (clang-1700.6.3.2)]",
-  "plataforma": "macOS-26.3-arm64-arm-64bit-Mach-O",
-  "pandas_version": "desconocida",
-  "numpy_version": "desconocida",
   "parametros": {
-    "ausentismo_csv": "data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv",
-    "presidencial_2026": "data/output/por_votacion/mesas_presidencial.csv",
-    "outdir": "data/output/analisis_ausentismo",
-    "matching_k": 5,
-    "baselines": {
-      "baseline_short_2011_2016": [
-        2011,
-        2016
-      ],
-      "baseline_long_2006_2011_2016": [
-        2006,
-        2011,
-        2016
-      ],
-      "baseline_recent_2016_2021": [
-        2016,
-        2021
-      ],
-      "baseline_robust_median_mad": [
-        2011,
-        2016,
-        2021
-      ]
-    },
-    "terminal_only": true
+    "version": "1.0.0",
+    "baseline_robust": [
+      2011,
+      2016,
+      2021
+    ],
+    "min_coverage": 0.5,
+    "k": 7,
+    "k_min": 5,
+    "seed": 20260501,
+    "mc_n": 1000,
+    "consolidado": "data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv",
+    "detalle_2026": "data/output/por_votacion/mesas_presidencial.csv",
+    "outdir": "data/output/analisis_ausentismo"
   },
-  "seed": 20260501,
   "inputs": {
     "data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv": "8ac800a890c8dc25286e267195683e58fed130fbdbb2348aa884062f05c90827",
     "data/output/por_votacion/mesas_presidencial.csv": "9526347f86b3cd58db06aeae804f66391ed997f92122e12d2383f0190bf2e3d1"
   },
   "outputs": {
-    "data/output/analisis_ausentismo/audit_checks.csv": "b7e1e0651b6f3b6b92b711f4608e1e21c842b6e939f0b1de378f9d63bb093baa",
-    "data/output/analisis_ausentismo/absenteeism_by_mesa.csv": "cf723c39ebfba81917d555f70e1a389be62fbf38dda3d38945b49cb597f1d00f",
-    "data/output/analisis_ausentismo/absenteeism_by_ubigeo.csv": "a76e401f8ea63676340e6ebdb55444e6512e0195749c2f58eaf90db15c401c18",
-    "data/output/analisis_ausentismo/baselines_by_ubigeo.csv": "7c22360d83aa2cd6b4cc0fa30fe3eaa6528d6c6763e3277f9af5db83c2848477",
-    "data/output/analisis_ausentismo/excess_absenteeism_flags.csv": "97fa83118e4e44540382c62ffd5698eaff4d9f2733a2e65c463ce1c1d562b0aa",
-    "data/output/analisis_ausentismo/geographic_concentration.csv": "8ea9c6599f9db3674cea1cb524e79de5daf4a0cc9a5e053d63e8a8ef2dbf598b",
-    "data/output/analisis_ausentismo/candidate_impact_scenarios.csv": "c080e5e9e63920d0a309f7f57d3da4ad13e5f6836c1f1659ae6a5d67775792d5",
-    "data/output/analisis_ausentismo/sensitivity_summary.csv": "9e67b35be1218fb65966bdb1926e69ce2ca5890d211bec0ecac8a6d65bda4bb0",
-    "FINAL_REPORT.md": "9d5d954bbbdffc808e9d15cafecfc37814a5b8e5476d45afa1a00cf8e246f9e3",
-    "data/output/analisis_ausentismo/config_run.yaml": "98ccfbdd899d6a550926f39e863d51e7d2374715458473720e40150fdfc4ae8b",
-    "data/output/analisis_ausentismo/assumptions.md": "062403e788896ab5a5329c1de83eb483ca31ce5eb35b0519ff26cb77370d515c"
+    "data/output/analisis_ausentismo/audit_checks.csv": "5e44908cd362743ebed0fea69ed90843df19bbd1febaec63bff5bb335645670d",
+    "data/output/analisis_ausentismo/absenteeism_by_mesa.csv": "a6ff97d610f415dcdfb40b66ad292c672704c086a172319ca52e888984487830",
+    "data/output/analisis_ausentismo/absenteeism_by_ubigeo.csv": "3ee5863478341e9f11c43b72dd13b09e90cc2b22839aef22680849bbad2c779c",
+    "data/output/analisis_ausentismo/baselines_by_ubigeo.csv": "e32be269ef1c42c663ffe03697eb897d4c8293970f22ad03e39d47a8f5900449",
+    "data/output/analisis_ausentismo/excess_absenteeism_flags.csv": "5d8ae8621bf62d9bb9d954cb2e0d591276d38242fc9929a2b645223a59d62640",
+    "data/output/analisis_ausentismo/geographic_concentration.csv": "29f2c82da2787dbdd1a06d58b157d176fd47e2ee285ce54f118ac20ea9806222",
+    "data/output/analisis_ausentismo/candidate_impact_scenarios.csv": "2fc6c700fb1da5541b9305c2829f733340bdf5aa66dfe70da9b9c182d29e016e",
+    "data/output/analisis_ausentismo/sensitivity_summary.csv": "1bd26e1d37f52fdd6aba9366c5205440900604a6df7975e22bc9d5daadd2f9c3"
   },
-  "n_filas_por_archivo": {
-    "audit_checks.csv": 20,
-    "absenteeism_by_mesa.csv": 447502,
-    "absenteeism_by_ubigeo.csv": 10496,
-    "baselines_by_ubigeo.csv": 8824,
-    "excess_absenteeism_flags.csv": 8212,
-    "geographic_concentration.csv": 9403,
-    "candidate_impact_scenarios.csv": 456,
-    "sensitivity_summary.csv": 24
+  "seed": 20260501,
+  "n_filas_por_etapa": {
+    "consolidado": 447502,
+    "audit_checks": 55,
+    "absenteeism_by_mesa": 447502,
+    "absenteeism_by_ubigeo": 10502,
+    "baselines": 3254,
+    "flags": 2093,
+    "geo_concentration": 2394,
+    "candidate_impact": 533411,
+    "sensitivity": 304
   },
-  "disclaimer": "Estos resultados son estimaciones contrafactuales bajo supuestos explícitos. No constituyen evidencia de manipulación electoral, fraude ni causalidad. Su propósito es analítico y exploratorio."
+  "duracion_segundos": 13.56
 }

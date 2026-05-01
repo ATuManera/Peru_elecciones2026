@@ -1,48 +1,65 @@
 # Supuestos y decisiones metodológicas
 
-Run ID: `c84e4256-df72-45e1-8c50-757b83401520`
-Commit: `e26740bdf8d1f4e14a0f4ef365c121cf77280cc3`
-Fecha: `2026-05-01T08:35:08.168183+00:00`
+> **AVISO OBLIGATORIO.** Los resultados de este análisis son **estimaciones
+> contrafactuales bajo supuestos explícitos**. No constituyen evidencia de
+> fraude, manipulación, supresión ni intención. Son señales para revisión
+> adicional por las autoridades electorales competentes (ONPE, JNE, JEE)
+> y la sociedad civil.
+
+## Identificador de corrida
+
+`47105560-29b5-42e7-b132-2051e092ee98`
 
 ## Baseline elegido
 
-Baseline principal: **mediana/MAD sobre 2011, 2016 y 2021** (`baseline_robust_median_mad`).
+**Baseline principal**: mediana/MAD sobre años 2011, 2016, 2021.
 
-**Por qué:** Combina los tres ciclos electorales históricos más recientes. La mediana es robusta
-ante el dato atípico de 2021 (pandemia). El MAD mide dispersión sin asumir normalidad.
-2006 se excluye del baseline principal por diferencias estructurales (tasa 11.3 %, padrón distinto).
+**Justificación**:
+- 2011 y 2016 son las elecciones pre-pandemia comparables estructuralmente a 2026.
+- 2021 se incluye para capturar variabilidad reciente, aunque es atípica (pandemia).
+- La mediana y MAD minimizan el peso de un único año atípico.
+- Se excluye 2006 del baseline principal por diferencias estructurales
+  (tasa agregada 11.29 %, esquema de mesas distinto, padrón menor).
 
-Baselines de robustez calculados en paralelo: corto (2011/16), largo (2006/11/16), reciente (2016/21).
+**Corrección metodológica aplicada**: `baseline_robust_median_mad` usa los años
+(2011, 2016, 2021), **no** solo (2011, 2016). Ver METHODOLOGY.md §2.4.
 
 ## Filtros aplicados
 
-- **Estado del acta**: solo mesas con estado terminal (`contabilizada_normal`, `resuelta`).
-  Se excluyen `sin_instalar`, `anulada`, `en_proceso`, `otro`.
-- **Electores hábiles**: se excluyen mesas con `electores_habiles = 0` o vacío.
-- **Votos emitidos**: se excluyen mesas con `votos_emitidos > electores_habiles`.
-- **Núcleo incompleto**: filas sin `electores_habiles`, `votos_emitidos` o `ausentes` no
-  entran a la inferencia de ubigeo.
+- **Estado del acta**: solo `terminal_normal` y `terminal_resuelto`.
+  Se excluyen `no_instalada`, `anulada_no_contabilizada`, `pendiente`, `desconocido`.
+  **Corrección metodológica aplicada**: el filtro se aplica **antes** de agregar
+  por ubigeo, no después.
+- **Mesas con `electores_habiles = 0`** o vacío: excluidas.
+- **Mesas con `votos_emitidos > electores_habiles`**: excluidas.
+- **Ubigeos con cobertura de baseline < 0.5**: marcados `baseline_insuficiente`.
 
 ## Modelos activados
 
-- **Modelo A** (distribución nacional 2026): `distribucion_nacional`
-- **Modelo B** (distribución local por ubigeo 2026): `distribucion_ubigeo`
-- **Modelo C** (matching territorial aproximado): `matching_ubigeos_aproximado`
-- **Modelo D** (bloque partidario): **no activado** — requiere archivo `bloques_partidarios.yaml`
-  pre-registrado.
+- **Modelo A**: distribución nacional 2026.
+- **Modelo B**: distribución local 2026 por ubigeo (estimación central).
+- **Modelo C**: distritos pareados (k=7, mismo departamento, cobertura=1.0).
+- **Modelo D**: desactivado (requiere bloques pre-registrados).
 
-## Decisiones no automatizables
+## Escenarios ejecutados
 
-- Los años de baseline fueron elegidos por el diseño metodológico en `docs/analisis_ausentismo/METHODOLOGY.md`;
-  no se optimizaron para producir ningún resultado específico.
-- El umbral de flag principal es z-robusto ≥ 3.5, conservador por diseño.
+S1–S8 según METHODOLOGY.md §7.1.
+
+## geographic_concentration.csv
+
+**Corrección metodológica aplicada**: tres niveles (ubigeo, provincia,
+departamento) con mediana z-robusto y % ubigeos flageados.
 
 ## Limitaciones reconocidas
 
-- El matching territorial usa distancia euclidiana sobre variables disponibles; no es causal.
-- 2021 incluye efectos pandemia; elevar el baseline esperado puede subestimar el exceso.
-- Los ubigeos sin dato en al menos un año de baseline quedan marcados `baseline_insuficiente`.
-- Las preferencias no observadas de electores ausentes **no** pueden conocerse; los modelos
-  A, B y C son supuestos, no observaciones.
+1. Supuestos de modelos no validados empíricamente.
+2. 2021 en baseline amplía rango por efecto pandemia.
+3. Esquemas de mesa distintos entre elecciones.
+4. Nombres de candidatos no comparables entre años.
+5. Cobertura de matching (Modelo C) puede ser insuficiente.
+6. Snapshot 2026 estático; refresh puede modificarlo.
 
-## Estos resultados son estimaciones contrafactuales bajo supuestos explícitos. No constituyen evidencia de manipulación electoral, fraude ni causalidad. Su propósito es analítico y exploratorio.
+## Aviso de no atribución de fraude
+
+Ningún resultado puede interpretarse como evidencia de fraude,
+manipulación electoral o supresión de votos.

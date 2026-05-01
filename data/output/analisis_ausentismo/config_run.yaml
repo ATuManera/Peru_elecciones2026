@@ -1,24 +1,33 @@
+# Parámetros de corrida — generado automáticamente
+# Fecha: 2026-05-01T09:03:14.123563+00:00
+
 baseline:
   primario: [2011, 2016, 2021]
   cobertura_minima: 0.5
   metodo: mediana_mad
+
 deteccion:
   z_robusto_alerta: 3.5
   exceso_absoluto_alerta_pp: 5
   exceso_relativo_alerta: 0.25
+
 filtros:
   estado_acta_terminal_only: true
   excluir_voto_extranjero: false
+
 modelos:
   imputacion: ["A", "B", "C"]
   D_activado: false
+
 matching:
-  k: 5
+  k: 7
   k_min: 5
-  features: ["electores_habiles", "tasa_baseline", "region_geo"]
+  features: [electores_habiles, urbano_rural_proxy, tasa_baseline]
+
 monte_carlo:
   ejecutar: false
   n_iter: 1000
   seed: 20260501
+
 salidas:
-  directorio: data/output/analisis_ausentismo
+  directorio: ./data/output/analisis_ausentismo/

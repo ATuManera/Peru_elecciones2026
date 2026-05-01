@@ -1,11 +1,22 @@
 #!/usr/bin/env python3
+"""Pipeline de análisis de ausentismo presidencial 2006-2026 (Perú).
+
+Calcula métricas de ausentismo, línea base histórica (mediana/MAD sobre
+2011, 2016, 2021), detección de exceso a nivel ubigeo, escenarios
+contrafactuales de impacto sobre votos y análisis de sensibilidad.
+
+AVISO OBLIGATORIO: Los resultados son estimaciones contrafactuales bajo
+supuestos explícitos. No constituyen evidencia de fraude, manipulación,
+supresión ni intención. Son señales para revisión adicional por las
+autoridades electorales competentes y la sociedad civil.
+"""
 from __future__ import annotations
 
 import csv
 import hashlib
 import json
 import math
-import platform
+import random
 import statistics
 import subprocess
 import sys
@@ -14,1337 +25,1429 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable
 
 from project_metadata import build_argument_parser
 
+VERSION = "1.0.0"
 
-DISCLAIMER = (
-    "Estos resultados son estimaciones contrafactuales bajo supuestos explícitos. "
-    "No constituyen evidencia de manipulación electoral, fraude ni causalidad. "
-    "Su propósito es analítico y exploratorio."
-)
+MAD_FACTOR   = 1.4826
+SIGMA_FLOOR  = 0.01
+DEFAULT_SEED = 20260501
+DEFAULT_K    = 7
+DEFAULT_K_MIN = 5
+DEFAULT_MC_N  = 1000
+MIN_COVERAGE  = 0.5
 
-DEFAULT_ABSENTEEISM_CSV = Path(
-    "data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv"
-)
-DEFAULT_PRESIDENTIAL_2026_CSV = Path("data/output/por_votacion/mesas_presidencial.csv")
-DEFAULT_OUTPUT_DIR = Path("data/output/analisis_ausentismo")
-DEFAULT_REPORT = Path("FINAL_REPORT.md")
+BASELINE_ROBUST = (2011, 2016, 2021)
+BASELINE_SHORT  = (2011, 2016)
+BASELINE_RECENT = (2016, 2021)
+BASELINE_LONG   = (2006, 2011, 2016)
 
-BASELINES = {
-    "baseline_short_2011_2016": (2011, 2016),
-    "baseline_long_2006_2011_2016": (2006, 2011, 2016),
-    "baseline_recent_2016_2021": (2016, 2021),
-    "baseline_robust_median_mad": (2011, 2016, 2021),
+DOMESTIC_DEP_CODES = {f"{i:02d}" for i in range(1, 26)}
+
+ESTADO_MAP: dict[str, str] = {
+    "CONTABILIZADAS NORMALES":    "terminal_normal",
+    "CONTABILIZADAS ANULADAS":    "terminal_resuelto",
+    "MESA NO INSTALADA":          "no_instalada",
+    "ACTA ELECTORAL NORMAL":      "terminal_normal",
+    "ACTA ELECTORAL RESUELTA":    "terminal_resuelto",
+    "CONTABILIZADA":              "terminal_normal",
+    "COMPUTADA RESUELTA":         "terminal_resuelto",
+    "ANULADA":                    "anulada_no_contabilizada",
+    "ANULADA POR EXTRAVIADA":     "anulada_no_contabilizada",
+    "SIN INSTALAR":               "no_instalada",
+    "EN PROCESO":                 "pendiente",
+    "Contabilizada":              "terminal_normal",
+    "Pendiente":                  "pendiente",
+    "Para envío al JEE":          "pendiente",
+    "En proceso":                 "pendiente",
+}
+TERMINAL = {"terminal_normal", "terminal_resuelto"}
+VOTOS_ESPECIALES = {"VOTOS EN BLANCO", "VOTOS NULOS", "VOTOS IMPUGNADOS"}
+
+SCENARIOS: dict[str, dict] = {
+    "S1": dict(baseline=BASELINE_ROBUST,  model="B", terminal_only=True,  excl_ext=False),
+    "S2": dict(baseline=BASELINE_ROBUST,  model="C", terminal_only=True,  excl_ext=False),
+    "S3": dict(baseline=BASELINE_ROBUST,  model="A", terminal_only=True,  excl_ext=False),
+    "S4": dict(baseline=BASELINE_SHORT,   model="B", terminal_only=True,  excl_ext=False),
+    "S5": dict(baseline=BASELINE_RECENT,  model="B", terminal_only=True,  excl_ext=False),
+    "S6": dict(baseline=BASELINE_LONG,    model="B", terminal_only=True,  excl_ext=False),
+    "S7": dict(baseline=BASELINE_ROBUST,  model="B", terminal_only=False, excl_ext=False),
+    "S8": dict(baseline=BASELINE_ROBUST,  model="B", terminal_only=True,  excl_ext=True),
 }
 
-ABSENTEEISM_FIELDS = [
-    "anio",
-    "fuente",
-    "codigo_mesa",
-    "ubigeo",
-    "ubigeo_original",
-    "ubigeo_normalizado",
-    "departamento",
-    "provincia",
-    "distrito",
-    "estado_acta",
-    "estado_operacional",
-    "electores_habiles",
-    "votos_emitidos",
-    "votos_validos",
-    "votos_blancos",
-    "votos_nulos",
-    "votos_impugnados",
-    "votos_no_validos",
-    "ausentes",
-    "tasa_ausentismo",
-    "nucleo_completo",
-]
+# ═══════════════════════════════════════════════════════════════════════════
+# Utilidades
+# ═══════════════════════════════════════════════════════════════════════════
 
+def sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def git_info() -> tuple[str, str]:
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+        branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        commit, branch = "unknown", "unknown"
+    return commit, branch
+
+
+def parse_int(val: object) -> int | None:
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s or s.lower() in {"nan", "none", "null", ""}:
+        return None
+    try:
+        return int(float(s.replace(",", "")))
+    except ValueError:
+        return None
+
+
+def parse_float(val: object) -> float | None:
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s or s.lower() in {"nan", "none", "null", ""}:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def safe_div(num: float | int | None, denom: float | int | None) -> float | None:
+    if num is None or denom is None or denom == 0:
+        return None
+    return num / denom
+
+
+def safe_mad(vals: list[float], center: float) -> float:
+    return statistics.median([abs(v - center) for v in vals]) if vals else 0.0
+
+
+def fmt(val: float | None, decimals: int = 6) -> str:
+    return "" if val is None else f"{val:.{decimals}f}"
+
+
+def write_csv(path: Path, fieldnames: list[str], rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=fieldnames, extrasaction="ignore")
+        w.writeheader()
+        w.writerows(rows)
+
+
+def classify_estado(estado: str) -> str:
+    return ESTADO_MAP.get(estado.strip(), "desconocido")
+
+
+def load_dep_map(path: Path) -> dict[str, str]:
+    result: dict[str, str] = {}
+    if not path.exists():
+        return result
+    with open(path, newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            code = (row.get("ubigeo_dpto") or "").strip().zfill(2)
+            name = (row.get("nombre") or "").strip()
+            if code:
+                result[code] = name
+    return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 1 — Carga del consolidado
+# ═══════════════════════════════════════════════════════════════════════════
 
 @dataclass
-class UbigeoYear:
+class MesaRow:
     anio: int
+    codigo_mesa: str
     ubigeo: str
     departamento: str
     provincia: str
     distrito: str
-    mesas: int = 0
-    electores_habiles: int = 0
-    votos_emitidos: int = 0
-    votos_validos: int = 0
-    votos_blancos: int = 0
-    votos_nulos: int = 0
-    votos_impugnados: int = 0
-    votos_no_validos: int = 0
-    ausentes: int = 0
-    filas_nucleo_incompleto: int = 0
-
-    @property
-    def tasa_ausentismo(self) -> float | None:
-        if self.electores_habiles <= 0:
-            return None
-        return self.ausentes / self.electores_habiles
+    estado_original: str
+    estado_cat: str
+    electores: int | None
+    emitidos: int | None
+    validos: int | None
+    blancos: int | None
+    nulos: int | None
+    impugnados: int | None
+    ausentes: int | None
+    tasa: float | None
+    excluir: bool
 
 
-def parse_int(value: object) -> int | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    if not text or text.lower() in {"nan", "none", "null"}:
-        return None
-    text = text.replace(",", "")
-    try:
-        return int(float(text))
-    except ValueError:
-        return None
+def load_consolidado(path: Path) -> list[MesaRow]:
+    rows: list[MesaRow] = []
+    with open(path, newline="", encoding="utf-8") as fh:
+        for raw in csv.DictReader(fh):
+            anio = parse_int(raw.get("anio"))
+            if anio is None:
+                continue
+            electores  = parse_int(raw.get("electores_habiles"))
+            emitidos   = parse_int(raw.get("votos_emitidos"))
+            validos    = parse_int(raw.get("votos_validos"))
+            blancos    = parse_int(raw.get("votos_blancos"))
+            nulos      = parse_int(raw.get("votos_nulos"))
+            impugnados = parse_int(raw.get("votos_impugnados"))
+            ausentes   = parse_int(raw.get("ausentes"))
+            estado_orig = (raw.get("estado_acta") or "").strip()
+            tasa = safe_div(ausentes, electores)
+            excluir = (
+                electores is None
+                or electores == 0
+                or (emitidos is not None and electores is not None and emitidos > electores)
+            )
+            rows.append(MesaRow(
+                anio=anio,
+                codigo_mesa=(raw.get("codigo_mesa") or "").strip(),
+                ubigeo=(raw.get("ubigeo") or "").strip(),
+                departamento=(raw.get("departamento") or "").strip(),
+                provincia=(raw.get("provincia") or "").strip(),
+                distrito=(raw.get("distrito") or "").strip(),
+                estado_original=estado_orig,
+                estado_cat=classify_estado(estado_orig),
+                electores=electores, emitidos=emitidos, validos=validos,
+                blancos=blancos, nulos=nulos, impugnados=impugnados,
+                ausentes=ausentes, tasa=tasa, excluir=excluir,
+            ))
+    return rows
 
 
-def parse_float(value: object) -> float | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    if not text or text.lower() in {"nan", "none", "null"}:
-        return None
-    try:
-        return float(text)
-    except ValueError:
-        return None
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 2 — Auditoría
+# ═══════════════════════════════════════════════════════════════════════════
+
+def build_audit_checks(rows: list[MesaRow]) -> list[dict]:
+    by_year: dict[int, list[MesaRow]] = defaultdict(list)
+    for r in rows:
+        by_year[r.anio].append(r)
+
+    checks: list[dict] = []
+    for year, yr_rows in sorted(by_year.items()):
+        def add(check_type: str, res: str, n: int, desc: str) -> None:
+            checks.append({"check_type": check_type, "anio": year,
+                           "resultado": res, "n": n, "descripcion": desc})
+        add("total_mesas", "info", len(yr_rows), f"Total filas cargadas para {year}")
+        n_zero = sum(1 for r in yr_rows if r.electores == 0)
+        add("zero_electores", "warn" if n_zero else "pass", n_zero,
+            "electores_habiles == 0")
+        n_miss = sum(1 for r in yr_rows if r.electores is None)
+        add("electores_missing", "warn" if n_miss else "pass", n_miss,
+            "electores_habiles nulo")
+        n_imp = sum(1 for r in yr_rows
+                    if r.electores and r.emitidos and r.emitidos > r.electores)
+        add("emitidos_gt_electores", "fail" if n_imp else "pass", n_imp,
+            "votos_emitidos > electores_habiles")
+        for cat in ("terminal_normal", "terminal_resuelto",
+                    "no_instalada", "anulada_no_contabilizada",
+                    "pendiente", "desconocido"):
+            n_cat = sum(1 for r in yr_rows if r.estado_cat == cat)
+            add(f"estado_{cat}", "info", n_cat, f"estado_acta_categoria = {cat}")
+        n_incons = 0
+        for r in yr_rows:
+            if r.emitidos is None:
+                continue
+            no_val   = sum(v for v in [r.blancos, r.nulos, r.impugnados] if v is not None)
+            expected = (r.validos or 0) + no_val
+            if abs(r.emitidos - expected) > 1:
+                n_incons += 1
+        add("totales_inconsistentes", "warn" if n_incons else "pass", n_incons,
+            "|votos_emitidos - (validos+blancos+nulos+impugnados)| > 1")
+    return checks
 
 
-def fmt(value: float | int | None, digits: int = 6) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, float):
-        if math.isnan(value) or math.isinf(value):
-            return ""
-        return f"{value:.{digits}f}"
-    return str(value)
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 3 — Ausentismo por mesa
+# ═══════════════════════════════════════════════════════════════════════════
+
+def build_absenteeism_by_mesa(rows: list[MesaRow]) -> list[dict]:
+    return [{
+        "anio": r.anio,
+        "codigo_mesa": r.codigo_mesa,
+        "ubigeo": r.ubigeo,
+        "departamento": r.departamento,
+        "provincia": r.provincia,
+        "distrito": r.distrito,
+        "estado_acta_original": r.estado_original,
+        "estado_acta_categoria": r.estado_cat,
+        "electores_habiles": "" if r.electores is None else r.electores,
+        "votos_emitidos": "" if r.emitidos is None else r.emitidos,
+        "ausentes": "" if r.ausentes is None else r.ausentes,
+        "tasa_ausentismo": fmt(r.tasa),
+        "excluir_de_inferencia": "1" if r.excluir else "0",
+    } for r in rows]
 
 
-def text(value: object) -> str:
-    if value is None:
-        return ""
-    value_text = str(value).strip()
-    if value_text.lower() in {"nan", "none", "null"}:
-        return ""
-    return value_text
-
-
-def normalize_ubigeo(value: object) -> tuple[str, str]:
-    original = text(value)
-    digits = "".join(ch for ch in original if ch.isdigit())
-    if digits and len(digits) <= 6:
-        return digits.zfill(6), original
-    return original, original
-
-
-def classify_state(value: str) -> str:
-    state = value.upper()
-    if "SIN INSTALAR" in state or "MESA NO INSTALADA" in state:
-        return "sin_instalar"
-    if "ANULAD" in state:
-        return "anulada"
-    if "RESUELT" in state:
-        return "resuelta"
-    if "CONTABILIZ" in state or "COMPUTAD" in state or "NORMAL" in state:
-        return "contabilizada_normal"
-    if "PENDIENTE" in state or "PROCESO" in state or "ENVIO" in state or "ENVÍO" in state:
-        return "en_proceso"
-    return "otro"
-
-
-def sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def current_commit() -> str:
-    result = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.stdout.strip() if result.returncode == 0 else "no_disponible"
-
-
-def median_absolute_deviation(values: list[float]) -> tuple[float | None, float | None]:
-    if not values:
-        return None, None
-    median = statistics.median(values)
-    mad = statistics.median(abs(value - median) for value in values)
-    return median, mad
-
-
-def sample_std(values: list[float]) -> float | None:
-    if len(values) < 2:
-        return None
-    std = statistics.stdev(values)
-    return std if std > 0 else None
-
-
-def percentile(values: list[float], p: float) -> float | None:
-    if not values:
-        return None
-    ordered = sorted(values)
-    if len(ordered) == 1:
-        return ordered[0]
-    index = (len(ordered) - 1) * p
-    lower = math.floor(index)
-    upper = math.ceil(index)
-    if lower == upper:
-        return ordered[int(index)]
-    weight = index - lower
-    return ordered[lower] * (1 - weight) + ordered[upper] * weight
-
-
-def read_absenteeism_rows(path: Path) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
-    rows: list[dict[str, str]] = []
-    audit: list[dict[str, str]] = []
-    seen: set[tuple[str, str]] = set()
-    duplicate_count = 0
-    malformed_mesa = 0
-    malformed_ubigeo = 0
-    negative_absent = 0
-    emitidos_gt_electores = 0
-    formula_mismatch = 0
-    incomplete_core = 0
-
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle)
-        for raw in reader:
-            anio = text(raw.get("anio"))
-            codigo_mesa = text(raw.get("codigo_mesa"))
-            key = (anio, codigo_mesa)
-            if key in seen:
-                duplicate_count += 1
-            seen.add(key)
-
-            if len(codigo_mesa) != 6 or not codigo_mesa.isdigit():
-                malformed_mesa += 1
-
-            ubigeo, ubigeo_original = normalize_ubigeo(raw.get("ubigeo"))
-            ubigeo_normalizado = "1" if ubigeo != ubigeo_original else "0"
-            if len(ubigeo) != 6 or not ubigeo.isdigit():
-                malformed_ubigeo += 1
-
-            electores = parse_int(raw.get("electores_habiles"))
-            emitidos = parse_int(raw.get("votos_emitidos"))
-            ausentes = parse_int(raw.get("ausentes"))
-            nucleo_completo = electores is not None and emitidos is not None and ausentes is not None
-            if not nucleo_completo:
-                incomplete_core += 1
-            else:
-                if ausentes < 0:
-                    negative_absent += 1
-                if emitidos > electores:
-                    emitidos_gt_electores += 1
-                if ausentes != electores - emitidos:
-                    formula_mismatch += 1
-
-            row = {
-                "anio": anio,
-                "fuente": text(raw.get("fuente")),
-                "codigo_mesa": codigo_mesa,
-                "ubigeo": ubigeo,
-                "ubigeo_original": ubigeo_original,
-                "ubigeo_normalizado": ubigeo_normalizado,
-                "departamento": text(raw.get("departamento")),
-                "provincia": text(raw.get("provincia")),
-                "distrito": text(raw.get("distrito")),
-                "estado_acta": text(raw.get("estado_acta")),
-                "estado_operacional": classify_state(text(raw.get("estado_acta"))),
-                "electores_habiles": fmt(electores, 0),
-                "votos_emitidos": fmt(emitidos, 0),
-                "votos_validos": text(raw.get("votos_validos")),
-                "votos_blancos": text(raw.get("votos_blancos")),
-                "votos_nulos": text(raw.get("votos_nulos")),
-                "votos_impugnados": text(raw.get("votos_impugnados")),
-                "votos_no_validos": text(raw.get("votos_no_validos")),
-                "ausentes": fmt(ausentes, 0),
-                "tasa_ausentismo": text(raw.get("tasa_ausentismo")),
-                "nucleo_completo": "1" if nucleo_completo else "0",
-            }
-            rows.append(row)
-
-    checks = {
-        "filas": len(rows),
-        "duplicados_anio_mesa": duplicate_count,
-        "codigo_mesa_malformado": malformed_mesa,
-        "ubigeo_malformado": malformed_ubigeo,
-        "filas_ubigeo_normalizado": sum(1 for row in rows if row["ubigeo_normalizado"] == "1"),
-        "ausentismo_negativo": negative_absent,
-        "votos_emitidos_mayor_electores": emitidos_gt_electores,
-        "formula_ausentes_inconsistente": formula_mismatch,
-        "nucleo_incompleto": incomplete_core,
-    }
-    for name, value in checks.items():
-        audit.append(
-            {
-                "categoria": "validacion_ausentismo",
-                "check": name,
-                "estado": "ok" if value == 0 or name in {"filas", "filas_ubigeo_normalizado", "nucleo_incompleto"} else "revisar",
-                "valor": str(value),
-                "detalle": "Chequeo operativo reproducible sobre el consolidado de ausentismo.",
-            }
-        )
-    return rows, audit
-
-
-TERMINAL_STATES = {"contabilizada_normal", "resuelta"}
-
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 4 — Ausentismo por ubigeo
+# ═══════════════════════════════════════════════════════════════════════════
 
 def aggregate_by_ubigeo(
-    rows: list[dict[str, str]], terminal_only: bool = True
-) -> dict[tuple[int, str], UbigeoYear]:
-    grouped: dict[tuple[int, str], UbigeoYear] = {}
-    for row in rows:
-        anio = parse_int(row["anio"])
-        if anio is None:
+    rows: list[MesaRow],
+    terminal_only: bool = True,
+) -> dict[tuple[int, str], dict]:
+    """Agrega por (anio, ubigeo). Corrección metodológica: filtrar estados
+    terminales ANTES de agregar (no después)."""
+    groups: dict[tuple[int, str], dict] = {}
+    for r in rows:
+        if r.excluir:
             continue
-        if terminal_only and row.get("estado_operacional") not in TERMINAL_STATES:
+        if terminal_only and r.estado_cat not in TERMINAL:
             continue
-        key = (anio, row["ubigeo"])
-        if key not in grouped:
-            grouped[key] = UbigeoYear(
-                anio=anio,
-                ubigeo=row["ubigeo"],
-                departamento=row["departamento"],
-                provincia=row["provincia"],
-                distrito=row["distrito"],
-            )
-        item = grouped[key]
-        item.mesas += 1
-        if not item.departamento and row["departamento"]:
-            item.departamento = row["departamento"]
-        if not item.provincia and row["provincia"]:
-            item.provincia = row["provincia"]
-        if not item.distrito and row["distrito"]:
-            item.distrito = row["distrito"]
-
-        electores = parse_int(row["electores_habiles"])
-        emitidos = parse_int(row["votos_emitidos"])
-        ausentes = parse_int(row["ausentes"])
-        if electores is None or emitidos is None or ausentes is None:
-            item.filas_nucleo_incompleto += 1
+        if not r.ubigeo:
             continue
-        item.electores_habiles += electores
-        item.votos_emitidos += emitidos
-        item.ausentes += ausentes
-        for attr, field in (
-            ("votos_validos", "votos_validos"),
-            ("votos_blancos", "votos_blancos"),
-            ("votos_nulos", "votos_nulos"),
-            ("votos_impugnados", "votos_impugnados"),
-            ("votos_no_validos", "votos_no_validos"),
-        ):
-            value = parse_int(row[field])
-            if value is not None:
-                setattr(item, attr, getattr(item, attr) + value)
-    return grouped
+        key = (r.anio, r.ubigeo)
+        if key not in groups:
+            groups[key] = {
+                "anio": r.anio, "ubigeo": r.ubigeo,
+                "departamento": r.departamento, "provincia": r.provincia,
+                "n_mesas": 0, "electores": 0, "emitidos": 0, "ausentes": 0,
+            }
+        g = groups[key]
+        g["n_mesas"]   += 1
+        g["electores"] += r.electores or 0
+        g["emitidos"]  += r.emitidos or 0
+        g["ausentes"]  += (r.electores or 0) - (r.emitidos or 0)
+        if not g["departamento"] and r.departamento:
+            g["departamento"] = r.departamento
+        if not g["provincia"] and r.provincia:
+            g["provincia"] = r.provincia
+    for g in groups.values():
+        g["tasa"] = safe_div(g["ausentes"], g["electores"])
+    return groups
 
 
-def enrich_geography(grouped: dict[tuple[int, str], UbigeoYear]) -> None:
-    descriptors: dict[str, tuple[str, str, str]] = {}
-    for (year, ubigeo), item in sorted(grouped.items()):
-        if year == 2026:
-            continue
-        if item.departamento or item.provincia or item.distrito:
-            descriptors.setdefault(ubigeo, (item.departamento, item.provincia, item.distrito))
-
-    for (_, ubigeo), item in grouped.items():
-        departamento, provincia, distrito = descriptors.get(ubigeo, ("", "", ""))
-        if not item.departamento:
-            item.departamento = departamento
-        if not item.provincia:
-            item.provincia = provincia
-        if not item.distrito:
-            item.distrito = distrito
-
-
-def ubigeo_to_row(item: UbigeoYear) -> dict[str, str]:
-    return {
-        "anio": str(item.anio),
-        "ubigeo": item.ubigeo,
-        "departamento": item.departamento,
-        "provincia": item.provincia,
-        "distrito": item.distrito,
-        "mesas": str(item.mesas),
-        "electores_habiles": str(item.electores_habiles),
-        "votos_emitidos": str(item.votos_emitidos),
-        "votos_validos": str(item.votos_validos),
-        "votos_blancos": str(item.votos_blancos),
-        "votos_nulos": str(item.votos_nulos),
-        "votos_impugnados": str(item.votos_impugnados),
-        "votos_no_validos": str(item.votos_no_validos),
-        "ausentes": str(item.ausentes),
-        "tasa_ausentismo": fmt(item.tasa_ausentismo),
-        "filas_nucleo_incompleto": str(item.filas_nucleo_incompleto),
-    }
+def build_absenteeism_by_ubigeo_rows(
+    groups: dict[tuple[int, str], dict],
+    dep_map: dict[str, str],
+) -> list[dict]:
+    out = []
+    for (anio, ubigeo), g in sorted(groups.items()):
+        out.append({
+            "anio": anio, "ubigeo": ubigeo,
+            "departamento": g["departamento"] or dep_map.get(ubigeo[:2], ""),
+            "provincia": g["provincia"],
+            "n_mesas": g["n_mesas"],
+            "electores_habiles": g["electores"],
+            "votos_emitidos": g["emitidos"],
+            "ausentes": g["ausentes"],
+            "tasa_ausentismo": fmt(g["tasa"]),
+        })
+    return out
 
 
-def build_baselines(grouped: dict[tuple[int, str], UbigeoYear]) -> list[dict[str, str]]:
-    ubigeos = sorted({ubigeo for _, ubigeo in grouped})
-    rows: list[dict[str, str]] = []
-    for ubigeo in ubigeos:
-        descriptor = next((grouped[key] for key in sorted(grouped) if key[1] == ubigeo), None)
-        for baseline_name, years in BASELINES.items():
-            rates = []
-            electores_hist = 0
-            for year in years:
-                item = grouped.get((year, ubigeo))
-                if item and item.tasa_ausentismo is not None:
-                    rates.append(item.tasa_ausentismo)
-                    electores_hist += item.electores_habiles
-            if not rates:
-                continue
-            mean = sum(rates) / len(rates)
-            median, mad = median_absolute_deviation(rates)
-            std = sample_std(rates)
-            tasa_esperada = median if baseline_name == "baseline_robust_median_mad" else mean
-            rows.append(
-                {
-                    "ubigeo": ubigeo,
-                    "departamento": descriptor.departamento if descriptor else "",
-                    "provincia": descriptor.provincia if descriptor else "",
-                    "distrito": descriptor.distrito if descriptor else "",
-                    "baseline": baseline_name,
-                    "anios_baseline": "|".join(str(year) for year in years),
-                    "n_anios_disponibles": str(len(rates)),
-                    "electores_historicos": str(electores_hist),
-                    "tasa_media": fmt(mean),
-                    "tasa_mediana": fmt(median),
-                    "tasa_mad": fmt(mad),
-                    "tasa_std": fmt(std),
-                    "tasa_esperada": fmt(tasa_esperada),
-                    "baseline_evaluable": "1" if len(rates) == len(years) else "0",
-                }
-            )
-    return rows
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 5 — Baseline (mediana/MAD)
+# ═══════════════════════════════════════════════════════════════════════════
 
+def build_baselines(
+    ubigeo_groups: dict[tuple[int, str], dict],
+    baseline_years: tuple[int, ...],
+    dep_map: dict[str, str],
+) -> dict[str, dict]:
+    """baseline_robust_median_mad usa (2011, 2016, 2021).
+    Corrección metodológica: no solo (2011, 2016)."""
+    ubigeo_tasas: dict[str, list[float]] = defaultdict(list)
+    for (anio, ubigeo), g in ubigeo_groups.items():
+        if anio in baseline_years and g["tasa"] is not None:
+            ubigeo_tasas[ubigeo].append(g["tasa"])
 
-def build_excess_flags(
-    grouped: dict[tuple[int, str], UbigeoYear], baselines: list[dict[str, str]]
-) -> list[dict[str, str]]:
-    baseline_by_key = {(row["ubigeo"], row["baseline"]): row for row in baselines}
-    rows: list[dict[str, str]] = []
-    by_baseline: dict[str, list[float]] = defaultdict(list)
-
-    for (ubigeo, baseline_name), baseline in baseline_by_key.items():
-        observed = grouped.get((2026, ubigeo))
-        if not observed or observed.tasa_ausentismo is None:
-            continue
-        tasa_esperada = parse_float(baseline["tasa_esperada"])
-        if tasa_esperada is None:
-            continue
-        ausentes_esperados = observed.electores_habiles * tasa_esperada
-        exceso_ausentes = observed.ausentes - ausentes_esperados
-        exceso_relativo = observed.tasa_ausentismo - tasa_esperada
-        std = parse_float(baseline["tasa_std"])
-        mad = parse_float(baseline["tasa_mad"])
-        robust_scale = 1.4826 * mad if mad is not None else None
-        z_score = exceso_relativo / std if std and std > 0 else None
-        robust_z = exceso_relativo / robust_scale if robust_scale and robust_scale > 0 else None
-        row = {
+    all_ubigeos = {ubigeo for (_, ubigeo) in ubigeo_groups.keys()}
+    result: dict[str, dict] = {}
+    for ubigeo in all_ubigeos:
+        tasas = ubigeo_tasas.get(ubigeo, [])
+        n = len(tasas)
+        cobertura    = n / len(baseline_years) if baseline_years else 0.0
+        insuficiente = cobertura < MIN_COVERAGE
+        if tasas:
+            tasa_bl = statistics.median(tasas)
+            mad     = safe_mad(tasas, tasa_bl)
+            sigma   = max(SIGMA_FLOOR, MAD_FACTOR * mad)
+        else:
+            tasa_bl = mad = sigma = None
+            insuficiente = True
+        result[ubigeo] = {
             "ubigeo": ubigeo,
-            "departamento": observed.departamento or baseline["departamento"],
-            "provincia": observed.provincia or baseline["provincia"],
-            "distrito": observed.distrito or baseline["distrito"],
-            "baseline": baseline_name,
-            "anios_baseline": baseline["anios_baseline"],
-            "n_anios_disponibles": baseline["n_anios_disponibles"],
-            "electores_habiles_2026": str(observed.electores_habiles),
-            "votos_emitidos_2026": str(observed.votos_emitidos),
-            "ausentes_2026": str(observed.ausentes),
-            "tasa_ausentismo_2026": fmt(observed.tasa_ausentismo),
-            "tasa_esperada": fmt(tasa_esperada),
-            "ausentes_esperados": fmt(ausentes_esperados),
-            "exceso_ausentes": fmt(exceso_ausentes),
-            "exceso_ausentes_positivo": fmt(max(0.0, exceso_ausentes)),
-            "exceso_relativo": fmt(exceso_relativo),
-            "z_score": fmt(z_score),
-            "robust_z": fmt(robust_z),
-            "mad_scale": fmt(robust_scale),
-            "flag_mad_2_5": "1" if robust_z is not None and robust_z >= 2.5 else "0",
-            "flag_mad_3_0": "1" if robust_z is not None and robust_z >= 3.0 else "0",
-            "flag_mad_3_5": "1" if robust_z is not None and robust_z >= 3.5 else "0",
-            "flag_percentil_90": "0",
-            "flag_percentil_95": "0",
-            "flag_percentil_99": "0",
-            "interpretacion_flag": "sin_flag",
+            "departamento": dep_map.get(ubigeo[:2], ""),
+            "n_anios_baseline": n,
+            "tasa_baseline": tasa_bl,
+            "mad": mad,
+            "sigma": sigma,
+            "cobertura": cobertura,
+            "baseline_insuficiente": insuficiente,
         }
-        rows.append(row)
-        by_baseline[baseline_name].append(exceso_relativo)
+    return result
 
-    thresholds: dict[str, dict[str, float | None]] = {}
-    for baseline_name, values in by_baseline.items():
-        thresholds[baseline_name] = {
-            "90": percentile(values, 0.90),
-            "95": percentile(values, 0.95),
-            "99": percentile(values, 0.99),
-        }
 
-    for row in rows:
-        exceso_relativo = parse_float(row["exceso_relativo"])
-        baseline_thresholds = thresholds[row["baseline"]]
-        for label, value in baseline_thresholds.items():
-            if exceso_relativo is not None and value is not None and exceso_relativo >= value:
-                row[f"flag_percentil_{label}"] = "1"
-        if row["flag_mad_3_5"] == "1":
-            row["interpretacion_flag"] = "senal_estadistica_fuerte_para_revision"
-        elif row["flag_mad_3_0"] == "1" or row["flag_percentil_99"] == "1":
-            row["interpretacion_flag"] = "senal_estadistica_para_revision"
-        elif row["flag_percentil_95"] == "1" or row["flag_mad_2_5"] == "1":
-            row["interpretacion_flag"] = "senal_exploratoria_para_revision"
+def build_baselines_rows(baselines: dict[str, dict]) -> list[dict]:
+    return [{
+        "ubigeo": bl["ubigeo"],
+        "departamento": bl["departamento"],
+        "n_anios_baseline": bl["n_anios_baseline"],
+        "tasa_baseline": fmt(bl["tasa_baseline"]),
+        "mad": fmt(bl["mad"]),
+        "sigma": fmt(bl["sigma"]),
+        "cobertura": fmt(bl["cobertura"]),
+        "baseline_insuficiente": "1" if bl["baseline_insuficiente"] else "0",
+    } for bl in sorted(baselines.values(), key=lambda x: x["ubigeo"])]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 6 — Exceso y flags
+# ═══════════════════════════════════════════════════════════════════════════
+
+def compute_flags(
+    ubigeo_2026: dict[str, dict],
+    baselines: dict[str, dict],
+    dep_map: dict[str, str],
+    prov_from_hist: dict[str, str],
+) -> list[dict]:
+    rows = []
+    for ubigeo, g in sorted(ubigeo_2026.items()):
+        bl = baselines.get(ubigeo)
+        if bl is None:
+            continue
+        tasa_2026 = g["tasa"]
+        tasa_bl   = bl["tasa_baseline"]
+        sigma     = bl["sigma"]
+        if tasa_2026 is None:
+            continue
+        if tasa_bl is not None:
+            exc_abs = tasa_2026 - tasa_bl
+            exc_rel = safe_div(exc_abs, tasa_bl)
+            z_rob   = safe_div(exc_abs, sigma) if sigma else None
+        else:
+            exc_abs = exc_rel = z_rob = None
+        electores = g["electores"]
+        exc_aus = max(0.0, exc_abs) * electores if exc_abs is not None else 0.0
+        dep_name  = g.get("departamento") or dep_map.get(ubigeo[:2], "")
+        prov_name = g.get("provincia") or prov_from_hist.get(ubigeo[:4], ubigeo[:4])
+        rows.append({
+            "ubigeo": ubigeo,
+            "departamento": dep_name,
+            "provincia": prov_name,
+            "electores_2026": electores,
+            "votos_2026": g["emitidos"],
+            "tasa_2026": fmt(tasa_2026),
+            "tasa_baseline": fmt(tasa_bl),
+            "sigma": fmt(sigma),
+            "exceso_absoluto": fmt(exc_abs),
+            "exceso_relativo": fmt(exc_rel),
+            "z_robusto": fmt(z_rob),
+            "exceso_ausentes": fmt(exc_aus, 1),
+            "flag_z_robusto_3p5": "1" if z_rob is not None and z_rob >= 3.5 else "0",
+            "flag_z_robusto_5":   "1" if z_rob is not None and z_rob >= 5.0 else "0",
+            "flag_exceso_5pp":    "1" if exc_abs is not None and exc_abs >= 0.05 else "0",
+            "flag_exceso_10pp":   "1" if exc_abs is not None and exc_abs >= 0.10 else "0",
+            "flag_relativo_25":   "1" if exc_rel is not None and exc_rel >= 0.25 else "0",
+            "flag_baseline_insuficiente": "1" if bl["baseline_insuficiente"] else "0",
+        })
     return rows
 
 
-def candidate_detail_ids(fieldnames: list[str]) -> list[int]:
-    ids = []
-    for name in fieldnames:
-        if not name.startswith("detalle_") or not name.endswith("_descripcion"):
-            continue
-        middle = name.removeprefix("detalle_").removesuffix("_descripcion")
-        if middle.isdigit():
-            number = int(middle)
-            if 1 <= number <= 79:
-                ids.append(number)
-    return sorted(ids)
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 7 — Concentración geográfica (tres niveles)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def build_geographic_concentration(flag_rows: list[dict]) -> list[dict]:
+    """Corrección metodológica: agrega en tres niveles (ubigeo, provincia,
+    departamento) con mediana de z-robusto y % de ubigeos flageados."""
+    out: list[dict] = []
+
+    for r in flag_rows:
+        z    = parse_float(r["z_robusto"])
+        flag = r["flag_z_robusto_3p5"] == "1"
+        exc  = parse_float(r["exceso_ausentes"]) or 0.0
+        elec = parse_int(r["electores_2026"]) or 0
+        out.append({
+            "nivel": "ubigeo",
+            "codigo": r["ubigeo"],
+            "zona_nombre": r.get("departamento", ""),
+            "n_ubigeos_total": 1,
+            "n_ubigeos_flagged": 1 if flag else 0,
+            "pct_ubigeos_flagged": fmt(1.0 if flag else 0.0),
+            "mediana_z_robusto": fmt(z),
+            "total_exceso_ausentes": fmt(exc, 1),
+            "total_electores": elec,
+        })
+
+    for nivel, prefix_len in [("provincia", 4), ("departamento", 2)]:
+        zona_field = "departamento" if nivel == "departamento" else "provincia"
+        groups: dict[str, list[dict]] = defaultdict(list)
+        for r in flag_rows:
+            groups[r["ubigeo"][:prefix_len]].append(r)
+        for codigo, g_rows in sorted(groups.items()):
+            n_total   = len(g_rows)
+            n_flagged = sum(1 for r in g_rows if r["flag_z_robusto_3p5"] == "1")
+            pct       = n_flagged / n_total if n_total else 0.0
+            z_vals    = [z for r in g_rows
+                         if (z := parse_float(r["z_robusto"])) is not None]
+            med_z     = statistics.median(z_vals) if z_vals else None
+            tot_exc   = sum(parse_float(r["exceso_ausentes"]) or 0.0 for r in g_rows)
+            tot_ele   = sum(parse_int(r["electores_2026"]) or 0 for r in g_rows)
+            zona_nombre = next(
+                (r[zona_field] for r in g_rows if r.get(zona_field)), codigo
+            )
+            out.append({
+                "nivel": nivel,
+                "codigo": codigo,
+                "zona_nombre": zona_nombre,
+                "n_ubigeos_total": n_total,
+                "n_ubigeos_flagged": n_flagged,
+                "pct_ubigeos_flagged": fmt(pct),
+                "mediana_z_robusto": fmt(med_z),
+                "total_exceso_ausentes": fmt(tot_exc, 1),
+                "total_electores": tot_ele,
+            })
+    return out
 
 
-def load_candidate_votes(path: Path) -> tuple[dict[str, dict[str, int]], dict[str, int], dict[str, str]]:
-    by_ubigeo: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
-    national: dict[str, int] = defaultdict(int)
-    labels: dict[str, str] = {}
-    with path.open("r", encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle)
-        ids = candidate_detail_ids(reader.fieldnames or [])
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 8 — Candidatos 2026
+# ═══════════════════════════════════════════════════════════════════════════
+
+def load_candidates_2026(
+    path: Path,
+) -> tuple[dict[str, dict[str, int]], dict[str, int]]:
+    ubigeo_cands: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    with open(path, newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        fieldnames = reader.fieldnames or []
+        detalle_pairs: list[tuple[str, str]] = []
+        for n in list(range(1, 39)) + [80, 81, 82]:
+            dc, vc = f"detalle_{n}_descripcion", f"detalle_{n}_nvotos"
+            if dc in fieldnames and vc in fieldnames:
+                detalle_pairs.append((dc, vc))
         for raw in reader:
-            ubigeo, _ = normalize_ubigeo(raw.get("ubigeoNivel03"))
-            for detail_id in ids:
-                desc = text(raw.get(f"detalle_{detail_id}_descripcion"))
-                votes = parse_int(raw.get(f"detalle_{detail_id}_nvotos")) or 0
+            ubigeo = (raw.get("ubigeoNivel03") or "").strip().zfill(6)
+            if not ubigeo or ubigeo == "000000":
+                continue
+            for dc, vc in detalle_pairs:
+                desc  = (raw.get(dc) or "").strip()
                 if not desc:
                     continue
-                candidate_id = str(detail_id)
-                labels[candidate_id] = desc
-                by_ubigeo[ubigeo][candidate_id] += votes
-                national[candidate_id] += votes
-    return by_ubigeo, dict(national), labels
+                votes = parse_int(raw.get(vc)) or 0
+                ubigeo_cands[ubigeo][desc] += votes
+    national: dict[str, int] = defaultdict(int)
+    for cands in ubigeo_cands.values():
+        for cand, v in cands.items():
+            national[cand] += v
+    return dict(ubigeo_cands), dict(national)
 
 
-def shares(votes: dict[str, int]) -> dict[str, float]:
-    total = sum(votes.values())
-    if total <= 0:
+# ═══════════════════════════════════════════════════════════════════════════
+# Modelos de imputación
+# ═══════════════════════════════════════════════════════════════════════════
+
+def model_A_shares(national_cands: dict[str, int]) -> dict[str, float]:
+    total = sum(v for c, v in national_cands.items() if c not in VOTOS_ESPECIALES)
+    if total == 0:
         return {}
-    return {candidate: value / total for candidate, value in votes.items()}
+    return {c: v / total for c, v in national_cands.items() if c not in VOTOS_ESPECIALES}
 
 
-def matched_shares_for_ubigeo(
-    ubigeo: str,
-    baseline_name: str,
-    excess_by_ubigeo: dict[str, float],
-    grouped: dict[tuple[int, str], UbigeoYear],
-    baselines_by_key: dict[tuple[str, str], dict[str, str]],
-    candidate_votes_by_ubigeo: dict[str, dict[str, int]],
-    k: int,
-) -> tuple[dict[str, float], str, float | None]:
-    observed = grouped.get((2026, ubigeo))
-    baseline = baselines_by_key.get((ubigeo, baseline_name))
-    if not observed or not baseline:
-        return {}, "", None
-    expected = parse_float(baseline["tasa_esperada"]) or 0.0
-    log_electors = math.log1p(observed.electores_habiles)
-    candidates: list[tuple[float, str]] = []
-    for other_key, other in grouped.items():
-        other_year, other_ubigeo = other_key
-        if other_year != 2026 or other_ubigeo == ubigeo:
+def model_B_shares(
+    ubigeo_cands: dict[str, dict[str, int]],
+) -> dict[str, dict[str, float]]:
+    result: dict[str, dict[str, float]] = {}
+    for ubigeo, cands in ubigeo_cands.items():
+        total = sum(v for c, v in cands.items() if c not in VOTOS_ESPECIALES)
+        if total == 0:
             continue
-        if sum(candidate_votes_by_ubigeo.get(other_ubigeo, {}).values()) <= 0:
-            continue
-        other_baseline = baselines_by_key.get((other_ubigeo, baseline_name))
-        if not other_baseline:
-            continue
-        other_expected = parse_float(other_baseline["tasa_esperada"]) or 0.0
-        dept_penalty = 0.0 if other.departamento == observed.departamento else 0.25
-        province_penalty = 0.0 if other.provincia == observed.provincia else 0.10
-        excess_penalty = 0.05 if excess_by_ubigeo.get(other_ubigeo, 0.0) > 0 else 0.0
-        distance = (
-            abs(expected - other_expected) * 10
-            + abs(log_electors - math.log1p(other.electores_habiles))
-            + dept_penalty
-            + province_penalty
-            + excess_penalty
-        )
-        candidates.append((distance, other_ubigeo))
-    nearest = sorted(candidates)[:k]
-    if not nearest:
-        return {}, "", None
-    weighted_votes: dict[str, float] = defaultdict(float)
-    total_weight = 0.0
-    distances = []
-    for distance, matched_ubigeo in nearest:
-        weight = 1.0 / max(distance, 0.001)
-        distances.append(distance)
-        for candidate, share in shares(candidate_votes_by_ubigeo.get(matched_ubigeo, {})).items():
-            weighted_votes[candidate] += share * weight
-        total_weight += weight
-    if total_weight <= 0:
-        return {}, "|".join(match for _, match in nearest), None
-    return (
-        {candidate: value / total_weight for candidate, value in weighted_votes.items()},
-        "|".join(match for _, match in nearest),
-        sum(distances) / len(distances),
-    )
+        result[ubigeo] = {c: v / total for c, v in cands.items()
+                          if c not in VOTOS_ESPECIALES}
+    return result
 
 
-def build_candidate_scenarios(
-    flags: list[dict[str, str]],
-    grouped: dict[tuple[int, str], UbigeoYear],
-    baselines: list[dict[str, str]],
-    candidate_votes_by_ubigeo: dict[str, dict[str, int]],
-    national_votes: dict[str, int],
-    candidate_labels: dict[str, str],
-    k_neighbors: int,
-) -> list[dict[str, str]]:
-    national_shares = shares(national_votes)
-    baselines_by_key = {(row["ubigeo"], row["baseline"]): row for row in baselines}
-    flags_by_baseline: dict[str, list[dict[str, str]]] = defaultdict(list)
-    for row in flags:
-        flags_by_baseline[row["baseline"]].append(row)
-
-    output: list[dict[str, str]] = []
-    for baseline_name, rows in flags_by_baseline.items():
-        excess_by_ubigeo = {
-            row["ubigeo"]: parse_float(row["exceso_ausentes_positivo"]) or 0.0 for row in rows
-        }
-        scenario_totals: dict[str, dict[str, float]] = {
-            "distribucion_nacional": defaultdict(float),
-            "distribucion_ubigeo": defaultdict(float),
-            "matching_ubigeos_aproximado": defaultdict(float),
-        }
-        match_quality: list[float] = []
-        excess_total = sum(excess_by_ubigeo.values())
-        for candidate, share in national_shares.items():
-            scenario_totals["distribucion_nacional"][candidate] = excess_total * share
-
-        for row in rows:
-            ubigeo = row["ubigeo"]
-            excess = excess_by_ubigeo.get(ubigeo, 0.0)
-            if excess <= 0:
-                continue
-            local_shares = shares(candidate_votes_by_ubigeo.get(ubigeo, {})) or national_shares
-            for candidate, share in local_shares.items():
-                scenario_totals["distribucion_ubigeo"][candidate] += excess * share
-
-            matched_shares, _, avg_distance = matched_shares_for_ubigeo(
-                ubigeo,
-                baseline_name,
-                excess_by_ubigeo,
-                grouped,
-                baselines_by_key,
-                candidate_votes_by_ubigeo,
-                k_neighbors,
-            )
-            if avg_distance is not None:
-                match_quality.append(avg_distance)
-            for candidate, share in (matched_shares or national_shares).items():
-                scenario_totals["matching_ubigeos_aproximado"][candidate] += excess * share
-
-        for model_name, totals in scenario_totals.items():
-            for candidate, imputed in sorted(totals.items(), key=lambda item: int(item[0])):
-                observed = national_votes.get(candidate, 0)
-                output.append(
-                    {
-                        "baseline": baseline_name,
-                        "modelo_imputacion": model_name,
-                        "candidate_id": candidate,
-                        "candidato": candidate_labels.get(candidate, ""),
-                        "votos_observados_2026": str(observed),
-                        "votos_imputados_contrafactuales": fmt(imputed),
-                        "votos_ajustados_contrafactuales": fmt(observed + imputed),
-                        "exceso_ausentes_total_modelado": fmt(excess_total),
-                        "supuesto": scenario_assumption(model_name),
-                        "calidad_matching_distancia_media": (
-                            fmt(sum(match_quality) / len(match_quality))
-                            if model_name == "matching_ubigeos_aproximado" and match_quality
-                            else ""
-                        ),
-                        "disclaimer": DISCLAIMER,
-                    }
-                )
-    return output
-
-
-def scenario_assumption(model_name: str) -> str:
-    if model_name == "distribucion_nacional":
-        return "Los ausentes excedentes se distribuyen como el voto nacional observado en 2026."
-    if model_name == "distribucion_ubigeo":
-        return "Los ausentes excedentes se distribuyen como el voto observado en su mismo UBIGEO."
-    return (
-        "Los ausentes excedentes se distribuyen como UBIGEOs cercanos por tasa esperada, "
-        "tamaño electoral y proximidad territorial aproximada."
-    )
-
-
-def build_geographic_concentration(flags: list[dict[str, str]]) -> list[dict[str, str]]:
-    by_ubigeo: dict[tuple[str, str, str, str], dict[str, float]] = defaultdict(
-        lambda: {"exceso": 0.0, "electores": 0.0, "flagged_z35": 0.0, "n_ubigeos": 0.0}
-    )
-    by_provincia: dict[tuple[str, str, str], dict[str, float]] = defaultdict(
-        lambda: {"exceso": 0.0, "electores": 0.0, "n_flagged_z35": 0.0, "n_ubigeos": 0.0}
-    )
-    by_departamento: dict[tuple[str, str], dict[str, float]] = defaultdict(
-        lambda: {"exceso": 0.0, "electores": 0.0, "n_flagged_z35": 0.0, "n_ubigeos": 0.0}
-    )
-    z_by_provincia: dict[tuple[str, str, str], list[float]] = defaultdict(list)
-    z_by_departamento: dict[tuple[str, str], list[float]] = defaultdict(list)
-
-    for row in flags:
-        excess = parse_float(row["exceso_ausentes_positivo"]) or 0.0
-        electores = parse_float(row["electores_habiles_2026"]) or 0.0
-        z = parse_float(row["robust_z"])
-        flagged_z35 = 1.0 if row["flag_mad_3_5"] == "1" else 0.0
-        baseline = row["baseline"]
-        dept = row["departamento"]
-        prov = row["provincia"]
-        ubigeo = row["ubigeo"]
-
-        k_ubigeo = (baseline, dept, prov, ubigeo)
-        by_ubigeo[k_ubigeo]["exceso"] += excess
-        by_ubigeo[k_ubigeo]["electores"] += electores
-        by_ubigeo[k_ubigeo]["flagged_z35"] = flagged_z35
-        by_ubigeo[k_ubigeo]["n_ubigeos"] = 1.0
-
-        k_prov = (baseline, dept, prov)
-        by_provincia[k_prov]["exceso"] += excess
-        by_provincia[k_prov]["electores"] += electores
-        by_provincia[k_prov]["n_flagged_z35"] += flagged_z35
-        by_provincia[k_prov]["n_ubigeos"] += 1.0
-        if z is not None:
-            z_by_provincia[k_prov].append(z)
-
-        k_dept = (baseline, dept)
-        by_departamento[k_dept]["exceso"] += excess
-        by_departamento[k_dept]["electores"] += electores
-        by_departamento[k_dept]["n_flagged_z35"] += flagged_z35
-        by_departamento[k_dept]["n_ubigeos"] += 1.0
-        if z is not None:
-            z_by_departamento[k_dept].append(z)
-
-    totals: dict[str, float] = defaultdict(float)
-    for (baseline, _, _, _), vals in by_ubigeo.items():
-        totals[baseline] += vals["exceso"]
-
-    rows: list[dict[str, str]] = []
-
-    by_baseline_ubigeo: dict[str, list] = defaultdict(list)
-    for key, vals in by_ubigeo.items():
-        by_baseline_ubigeo[key[0]].append((key, vals))
-    for baseline, items in by_baseline_ubigeo.items():
-        cumulative = 0.0
-        total = totals[baseline]
-        for rank, (key, vals) in enumerate(
-            sorted(items, key=lambda x: x[1]["exceso"], reverse=True), 1
-        ):
-            _, dept, prov, ubigeo = key
-            cumulative += vals["exceso"]
-            rows.append(
-                {
-                    "nivel": "ubigeo",
-                    "baseline": baseline,
-                    "rank": str(rank),
-                    "departamento": dept,
-                    "provincia": prov,
-                    "ubigeo": ubigeo,
-                    "electores_habiles_2026": fmt(vals["electores"], 0),
-                    "exceso_ausentes_positivo": fmt(vals["exceso"]),
-                    "n_ubigeos": "1",
-                    "n_ubigeos_flagged_z35": fmt(vals["flagged_z35"], 0),
-                    "pct_ubigeos_flagged_z35": fmt(vals["flagged_z35"]),
-                    "mediana_z_robusto": "",
-                    "participacion_exceso_total": fmt(vals["exceso"] / total if total else None),
-                    "participacion_acumulada": fmt(cumulative / total if total else None),
-                }
-            )
-
-    by_baseline_prov: dict[str, list] = defaultdict(list)
-    for key, vals in by_provincia.items():
-        by_baseline_prov[key[0]].append((key, vals))
-    for baseline, items in by_baseline_prov.items():
-        total = totals[baseline]
-        for rank, (key, vals) in enumerate(
-            sorted(items, key=lambda x: x[1]["exceso"], reverse=True), 1
-        ):
-            _, dept, prov = key
-            n = vals["n_ubigeos"]
-            n_flag = vals["n_flagged_z35"]
-            z_values = z_by_provincia.get(key, [])
-            median_z = statistics.median(z_values) if z_values else None
-            rows.append(
-                {
-                    "nivel": "provincia",
-                    "baseline": baseline,
-                    "rank": str(rank),
-                    "departamento": dept,
-                    "provincia": prov,
-                    "ubigeo": "",
-                    "electores_habiles_2026": fmt(vals["electores"], 0),
-                    "exceso_ausentes_positivo": fmt(vals["exceso"]),
-                    "n_ubigeos": fmt(n, 0),
-                    "n_ubigeos_flagged_z35": fmt(n_flag, 0),
-                    "pct_ubigeos_flagged_z35": fmt(n_flag / n if n else None),
-                    "mediana_z_robusto": fmt(median_z),
-                    "participacion_exceso_total": fmt(vals["exceso"] / total if total else None),
-                    "participacion_acumulada": "",
-                }
-            )
-
-    by_baseline_dept: dict[str, list] = defaultdict(list)
-    for key, vals in by_departamento.items():
-        by_baseline_dept[key[0]].append((key, vals))
-    for baseline, items in by_baseline_dept.items():
-        total = totals[baseline]
-        for rank, (key, vals) in enumerate(
-            sorted(items, key=lambda x: x[1]["exceso"], reverse=True), 1
-        ):
-            _, dept = key
-            n = vals["n_ubigeos"]
-            n_flag = vals["n_flagged_z35"]
-            z_values = z_by_departamento.get(key, [])
-            median_z = statistics.median(z_values) if z_values else None
-            rows.append(
-                {
-                    "nivel": "departamento",
-                    "baseline": baseline,
-                    "rank": str(rank),
-                    "departamento": dept,
-                    "provincia": "",
-                    "ubigeo": "",
-                    "electores_habiles_2026": fmt(vals["electores"], 0),
-                    "exceso_ausentes_positivo": fmt(vals["exceso"]),
-                    "n_ubigeos": fmt(n, 0),
-                    "n_ubigeos_flagged_z35": fmt(n_flag, 0),
-                    "pct_ubigeos_flagged_z35": fmt(n_flag / n if n else None),
-                    "mediana_z_robusto": fmt(median_z),
-                    "participacion_exceso_total": fmt(vals["exceso"] / total if total else None),
-                    "participacion_acumulada": "",
-                }
-            )
-
-    return rows
-
-
-def build_sensitivity_summary(flags: list[dict[str, str]]) -> list[dict[str, str]]:
-    rows = []
-    by_baseline: dict[str, list[dict[str, str]]] = defaultdict(list)
-    for row in flags:
-        by_baseline[row["baseline"]].append(row)
-    for baseline, baseline_rows in sorted(by_baseline.items()):
-        positive_total = sum(parse_float(row["exceso_ausentes_positivo"]) or 0.0 for row in baseline_rows)
-        evaluable = len(baseline_rows)
-        for threshold in ("2_5", "3_0", "3_5"):
-            flagged = [row for row in baseline_rows if row[f"flag_mad_{threshold}"] == "1"]
-            rows.append(
-                {
-                    "baseline": baseline,
-                    "dimension": "umbral_mad",
-                    "parametro": threshold.replace("_", "."),
-                    "unidades_evaluadas": str(evaluable),
-                    "unidades_flag": str(len(flagged)),
-                    "exceso_ausentes_positivo_total": fmt(positive_total),
-                    "exceso_ausentes_positivo_flag": fmt(
-                        sum(parse_float(row["exceso_ausentes_positivo"]) or 0.0 for row in flagged)
-                    ),
-                    "nota": "Flags interpretados como senales estadisticas para revision.",
-                }
-            )
-        for percentile_label in ("90", "95", "99"):
-            flagged = [row for row in baseline_rows if row[f"flag_percentil_{percentile_label}"] == "1"]
-            rows.append(
-                {
-                    "baseline": baseline,
-                    "dimension": "umbral_percentil",
-                    "parametro": percentile_label,
-                    "unidades_evaluadas": str(evaluable),
-                    "unidades_flag": str(len(flagged)),
-                    "exceso_ausentes_positivo_total": fmt(positive_total),
-                    "exceso_ausentes_positivo_flag": fmt(
-                        sum(parse_float(row["exceso_ausentes_positivo"]) or 0.0 for row in flagged)
-                    ),
-                    "nota": "Percentiles calculados dentro de cada baseline.",
-                }
-            )
-    return rows
-
-
-def write_csv(path: Path, rows: Iterable[dict[str, str]], fieldnames: list[str] | None = None) -> int:
-    materialized = list(rows)
-    if fieldnames is None:
-        fieldnames = list(materialized[0].keys()) if materialized else []
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(materialized)
-    return len(materialized)
-
-
-def build_audit_checks(
-    input_paths: list[Path],
-    absenteeism_audit: list[dict[str, str]],
-    grouped: dict[tuple[int, str], UbigeoYear],
-    output_dir: Path,
-) -> list[dict[str, str]]:
-    rows = []
-    for path in input_paths:
-        rows.append(
-            {
-                "categoria": "input",
-                "check": "archivo_existe",
-                "estado": "ok" if path.exists() else "error",
-                "valor": str(path),
-                "detalle": "Existencia de archivo de entrada versionado.",
-            }
-        )
-        if path.exists():
-            rows.append(
-                {
-                    "categoria": "input",
-                    "check": "sha256",
-                    "estado": "ok",
-                    "valor": sha256_file(path),
-                    "detalle": str(path),
-                }
-            )
-    rows.extend(absenteeism_audit)
-    totals_by_year: dict[int, UbigeoYear] = {}
-    for item in grouped.values():
-        totals_by_year.setdefault(
-            item.anio, UbigeoYear(item.anio, "NACIONAL", "", "", "")
-        )
-        total = totals_by_year[item.anio]
-        total.mesas += item.mesas
-        total.electores_habiles += item.electores_habiles
-        total.votos_emitidos += item.votos_emitidos
-        total.ausentes += item.ausentes
-        total.filas_nucleo_incompleto += item.filas_nucleo_incompleto
-    for year, total in sorted(totals_by_year.items()):
-        rows.append(
-            {
-                "categoria": "resumen_anual",
-                "check": f"tasa_ausentismo_{year}",
-                "estado": "ok",
-                "valor": fmt(total.tasa_ausentismo),
-                "detalle": (
-                    f"electores={total.electores_habiles}; emitidos={total.votos_emitidos}; "
-                    f"ausentes={total.ausentes}; mesas={total.mesas}"
-                ),
-            }
-        )
-    rows.append(
-        {
-            "categoria": "ejecucion",
-            "check": "commit_git",
-            "estado": "ok",
-            "valor": current_commit(),
-            "detalle": "Commit registrado para reproducibilidad.",
-        }
-    )
-    rows.append(
-        {
-            "categoria": "ejecucion",
-            "check": "output_dir",
-            "estado": "ok",
-            "valor": str(output_dir),
-            "detalle": DISCLAIMER,
-        }
-    )
-    return rows
-
-
-def get_package_version(name: str) -> str:
+def _standardize(vals: list[float]) -> list[float]:
+    if not vals:
+        return vals
+    m = statistics.mean(vals)
     try:
-        import importlib.metadata
-        return importlib.metadata.version(name)
-    except Exception:
-        return "desconocida"
+        s = statistics.stdev(vals)
+    except statistics.StatisticsError:
+        s = 0.0
+    if s == 0:
+        s = 1.0
+    return [(v - m) / s for v in vals]
 
 
-def write_config_yaml(path: Path, baselines: dict[str, tuple[int, ...]], args: object) -> None:
-    baseline_primario = list(BASELINES["baseline_robust_median_mad"])
-    matching_k = getattr(args, "matching_k", 5)
-    lines = [
-        "baseline:",
-        f"  primario: {json.dumps(baseline_primario)}",
-        "  cobertura_minima: 0.5",
-        "  metodo: mediana_mad",
-        "deteccion:",
-        "  z_robusto_alerta: 3.5",
-        "  exceso_absoluto_alerta_pp: 5",
-        "  exceso_relativo_alerta: 0.25",
-        "filtros:",
-        "  estado_acta_terminal_only: true",
-        "  excluir_voto_extranjero: false",
-        "modelos:",
-        '  imputacion: ["A", "B", "C"]',
-        "  D_activado: false",
-        "matching:",
-        f"  k: {matching_k}",
-        "  k_min: 5",
-        '  features: ["electores_habiles", "tasa_baseline", "region_geo"]',
-        "monte_carlo:",
-        "  ejecutar: false",
-        "  n_iter: 1000",
-        "  seed: 20260501",
-        f"salidas:",
-        f"  directorio: {getattr(args, 'outdir', str(DEFAULT_OUTPUT_DIR))}",
-    ]
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+def model_C_compute(
+    flag_rows: list[dict],
+    ubigeo_2026: dict[str, dict],
+    baselines: dict[str, dict],
+    local_shares: dict[str, dict[str, float]],
+    k: int = DEFAULT_K,
+    k_min: int = DEFAULT_K_MIN,
+    seed: int = DEFAULT_SEED,
+) -> dict[str, dict]:
+    _rng = random.Random(seed)  # semilla determinística registrada en manifiesto
+    flagged_set = {r["ubigeo"] for r in flag_rows if r["flag_z_robusto_3p5"] == "1"}
+    all_ubigeos = sorted(ubigeo_2026.keys())
+
+    norm_e = _standardize([float(ubigeo_2026[u]["electores"] or 0) for u in all_ubigeos])
+    norm_t = _standardize([
+        baselines[u]["tasa_baseline"] if u in baselines and baselines[u]["tasa_baseline"] is not None
+        else 0.0 for u in all_ubigeos
+    ])
+    norm_n = _standardize([float(ubigeo_2026[u]["n_mesas"]) for u in all_ubigeos])
+    feat_map = {u: (norm_e[i], norm_t[i], norm_n[i]) for i, u in enumerate(all_ubigeos)}
+
+    result: dict[str, dict] = {}
+    for r in flag_rows:
+        if r["flag_z_robusto_3p5"] != "1":
+            continue
+        ubigeo = r["ubigeo"]
+        dep    = ubigeo[:2]
+        target = feat_map.get(ubigeo)
+        if target is None:
+            result[ubigeo] = {"shares": {}, "match_insuficiente": True, "matches": []}
+            continue
+        candidates: list[tuple[float, str]] = []
+        for u in all_ubigeos:
+            if u in flagged_set:
+                continue
+            bl = baselines.get(u)
+            if bl is None or bl["cobertura"] < 1.0:
+                continue
+            if u[:2] != dep:
+                continue
+            feat = feat_map.get(u)
+            if feat is None:
+                continue
+            dist = math.sqrt(sum((a - b) ** 2 for a, b in zip(target, feat)))
+            candidates.append((dist, u))
+        candidates.sort()
+        matches = [u for _, u in candidates[:k]]
+        if len(matches) < k_min:
+            result[ubigeo] = {"shares": {}, "match_insuficiente": True, "matches": matches}
+            continue
+        all_cands: set[str] = set()
+        for m in matches:
+            all_cands.update(local_shares.get(m, {}).keys())
+        shares: dict[str, float] = {}
+        for cand in all_cands:
+            cand_vals = [local_shares[m].get(cand, 0.0) for m in matches if m in local_shares]
+            if cand_vals:
+                shares[cand] = statistics.median(cand_vals)
+        tot = sum(shares.values())
+        if tot > 0:
+            shares = {c: v / tot for c, v in shares.items()}
+        result[ubigeo] = {"shares": shares, "match_insuficiente": False, "matches": matches}
+    return result
 
 
-def write_manifest_json(
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 9 — Escenarios
+# ═══════════════════════════════════════════════════════════════════════════
+
+def run_scenario(
+    scenario_id: str,
+    baseline_years: tuple[int, ...],
+    model_id: str,
+    terminal_only: bool,
+    excl_ext: bool,
+    rows: list[MesaRow],
+    dep_map: dict[str, str],
+    ubigeo_cands: dict[str, dict[str, int]],
+    national_cands: dict[str, int],
+    k: int = DEFAULT_K,
+    k_min: int = DEFAULT_K_MIN,
+    seed: int = DEFAULT_SEED,
+) -> tuple[list[dict], list[dict]]:
+    ubigeo_groups = aggregate_by_ubigeo(rows, terminal_only=terminal_only)
+    ubigeo_2026 = {
+        ubigeo: g for (anio, ubigeo), g in ubigeo_groups.items() if anio == 2026
+    }
+    if excl_ext:
+        ubigeo_2026 = {u: g for u, g in ubigeo_2026.items()
+                       if u[:2] in DOMESTIC_DEP_CODES}
+    baselines   = build_baselines(ubigeo_groups, baseline_years, dep_map)
+    flag_rows   = compute_flags(ubigeo_2026, baselines, dep_map, {})
+    exceso_map  = {r["ubigeo"]: float(r["exceso_ausentes"]) for r in flag_rows}
+    baseline_str = "+".join(str(y) for y in baseline_years)
+    total_electores = sum(g["electores"] for g in ubigeo_2026.values())
+
+    impact_rows: list[dict] = []
+
+    if model_id == "A":
+        shares_A = model_A_shares(national_cands)
+        for ubigeo, exceso in exceso_map.items():
+            if exceso <= 0:
+                continue
+            for cand, share in shares_A.items():
+                impact_rows.append({
+                    "escenario": scenario_id, "baseline": baseline_str,
+                    "modelo": model_id, "ubigeo": ubigeo, "candidato": cand,
+                    "votos_observados": ubigeo_cands.get(ubigeo, {}).get(cand, 0),
+                    "delta_votos": fmt(exceso * share, 2),
+                    "share_imputado": fmt(share),
+                    "exceso_ausentes": fmt(exceso, 1), "match_insuficiente": "0",
+                })
+
+    elif model_id == "B":
+        shares_B = model_B_shares(ubigeo_cands)
+        shares_A_fb = model_A_shares(national_cands)
+        for ubigeo, exceso in exceso_map.items():
+            if exceso <= 0:
+                continue
+            local_sh = shares_B.get(ubigeo) or shares_A_fb
+            for cand, share in local_sh.items():
+                impact_rows.append({
+                    "escenario": scenario_id, "baseline": baseline_str,
+                    "modelo": model_id, "ubigeo": ubigeo, "candidato": cand,
+                    "votos_observados": ubigeo_cands.get(ubigeo, {}).get(cand, 0),
+                    "delta_votos": fmt(exceso * share, 2),
+                    "share_imputado": fmt(share),
+                    "exceso_ausentes": fmt(exceso, 1), "match_insuficiente": "0",
+                })
+
+    elif model_id == "C":
+        shares_B  = model_B_shares(ubigeo_cands)
+        c_result  = model_C_compute(flag_rows, ubigeo_2026, baselines,
+                                    shares_B, k=k, k_min=k_min, seed=seed)
+        for ubigeo, exceso in exceso_map.items():
+            if exceso <= 0:
+                continue
+            c_data = c_result.get(ubigeo)
+            if c_data is None:
+                continue
+            if c_data["match_insuficiente"]:
+                impact_rows.append({
+                    "escenario": scenario_id, "baseline": baseline_str,
+                    "modelo": model_id, "ubigeo": ubigeo, "candidato": "TODOS",
+                    "votos_observados": 0, "delta_votos": "0.00",
+                    "share_imputado": "0.000000",
+                    "exceso_ausentes": fmt(exceso, 1), "match_insuficiente": "1",
+                })
+                continue
+            for cand, share in c_data["shares"].items():
+                impact_rows.append({
+                    "escenario": scenario_id, "baseline": baseline_str,
+                    "modelo": model_id, "ubigeo": ubigeo, "candidato": cand,
+                    "votos_observados": ubigeo_cands.get(ubigeo, {}).get(cand, 0),
+                    "delta_votos": fmt(exceso * share, 2),
+                    "share_imputado": fmt(share),
+                    "exceso_ausentes": fmt(exceso, 1), "match_insuficiente": "0",
+                })
+
+    # Resumen nacional
+    national_obs: dict[str, int] = {
+        cand: sum(ubigeo_cands.get(u, {}).get(cand, 0) for u in ubigeo_2026)
+        for cand in national_cands if cand not in VOTOS_ESPECIALES
+    }
+    delta_by_cand: dict[str, float] = defaultdict(float)
+    for ir in impact_rows:
+        if ir["match_insuficiente"] == "0" and ir["candidato"] != "TODOS":
+            delta_by_cand[ir["candidato"]] += float(ir["delta_votos"])
+
+    summary_rows: list[dict] = []
+    for cand, delta in sorted(delta_by_cand.items(), key=lambda x: -x[1]):
+        obs      = national_obs.get(cand, 0)
+        delta_pct = delta / total_electores * 100 if total_electores else 0.0
+        summary_rows.append({
+            "escenario": scenario_id, "baseline": baseline_str, "modelo": model_id,
+            "candidato": cand,
+            "delta_votos_nacional": fmt(delta, 2),
+            "votos_observados_nacional": obs,
+            "delta_pct_padron": fmt(delta_pct, 4),
+        })
+    return impact_rows, summary_rows
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 10 — Sensibilidad
+# ═══════════════════════════════════════════════════════════════════════════
+
+def build_sensitivity(all_summary_rows: list[dict]) -> list[dict]:
+    delta_by_cand: dict[str, list[float]] = defaultdict(list)
+    for r in all_summary_rows:
+        d = parse_float(r["delta_votos_nacional"])
+        if d is not None:
+            delta_by_cand[r["candidato"]].append(d)
+    enriched: list[dict] = []
+    for r in all_summary_rows:
+        cand   = r["candidato"]
+        deltas = delta_by_cand.get(cand, [])
+        if len(deltas) > 1:
+            try:
+                cv = statistics.stdev(deltas) / abs(statistics.mean(deltas))
+            except (statistics.StatisticsError, ZeroDivisionError):
+                cv = 0.0
+            signo_pos = sum(1 for d in deltas if d >= 0) / len(deltas)
+        else:
+            cv = 0.0
+            signo_pos = 1.0
+        enriched.append({
+            **r,
+            "coef_variacion": fmt(cv, 4),
+            "prop_signo_positivo": fmt(signo_pos, 4),
+            "delta_no_robusto": "1" if signo_pos < 0.8 else "0",
+        })
+    return enriched
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 11 — Manifiesto, config, supuestos
+# ═══════════════════════════════════════════════════════════════════════════
+
+def write_manifest(
     path: Path,
     run_id: str,
-    start_utc: datetime,
-    end_utc: datetime,
-    input_paths: list[Path],
-    output_paths: list[Path],
-    counts: dict[str, int],
-    args: object,
+    commit: str,
+    branch: str,
+    params: dict,
+    input_hashes: dict[str, str],
+    output_hashes: dict[str, str],
+    duration_secs: float,
+    n_rows_by_stage: dict[str, int],
 ) -> None:
     manifest = {
         "run_id": run_id,
-        "commit_hash": current_commit(),
-        "branch": subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True, check=False,
-        ).stdout.strip(),
-        "fecha_inicio_utc": start_utc.isoformat(),
-        "fecha_fin_utc": end_utc.isoformat(),
-        "duracion_segundos": round((end_utc - start_utc).total_seconds(), 2),
+        "commit_hash": commit,
+        "branch": branch,
+        "fecha_ejecucion_utc": datetime.now(timezone.utc).isoformat(),
         "python_version": sys.version,
-        "plataforma": platform.platform(),
-        "pandas_version": get_package_version("pandas"),
-        "numpy_version": get_package_version("numpy"),
-        "parametros": {
-            "ausentismo_csv": getattr(args, "ausentismo_csv", ""),
-            "presidencial_2026": getattr(args, "presidencial_2026", ""),
-            "outdir": getattr(args, "outdir", ""),
-            "matching_k": getattr(args, "matching_k", 5),
-            "baselines": {name: list(years) for name, years in BASELINES.items()},
-            "terminal_only": True,
-        },
-        "seed": 20260501,
-        "inputs": {
-            str(p): sha256_file(p) if p.exists() else "no_existe"
-            for p in input_paths
-        },
-        "outputs": {
-            str(p): sha256_file(p) if p.exists() else "no_existe"
-            for p in output_paths
-        },
-        "n_filas_por_archivo": counts,
-        "disclaimer": DISCLAIMER,
+        "parametros": params,
+        "inputs": input_hashes,
+        "outputs": output_hashes,
+        "seed": params.get("seed", DEFAULT_SEED),
+        "n_filas_por_etapa": n_rows_by_stage,
+        "duracion_segundos": round(duration_secs, 2),
     }
-    path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(manifest, fh, ensure_ascii=False, indent=2)
 
 
-def write_assumptions_md(path: Path, run_id: str) -> None:
-    content = f"""# Supuestos y decisiones metodológicas
+def write_config_yaml(path: Path, params: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    bl = params.get("baseline_robust", list(BASELINE_ROBUST))
+    text = f"""\
+# Parámetros de corrida — generado automáticamente
+# Fecha: {datetime.now(timezone.utc).isoformat()}
 
-Run ID: `{run_id}`
-Commit: `{current_commit()}`
-Fecha: `{datetime.now(timezone.utc).isoformat()}`
+baseline:
+  primario: {json.dumps(bl)}
+  cobertura_minima: {params.get("min_coverage", MIN_COVERAGE)}
+  metodo: mediana_mad
+
+deteccion:
+  z_robusto_alerta: 3.5
+  exceso_absoluto_alerta_pp: 5
+  exceso_relativo_alerta: 0.25
+
+filtros:
+  estado_acta_terminal_only: true
+  excluir_voto_extranjero: false
+
+modelos:
+  imputacion: ["A", "B", "C"]
+  D_activado: false
+
+matching:
+  k: {params.get("k", DEFAULT_K)}
+  k_min: {params.get("k_min", DEFAULT_K_MIN)}
+  features: [electores_habiles, urbano_rural_proxy, tasa_baseline]
+
+monte_carlo:
+  ejecutar: false
+  n_iter: {params.get("mc_n", DEFAULT_MC_N)}
+  seed: {params.get("seed", DEFAULT_SEED)}
+
+salidas:
+  directorio: ./data/output/analisis_ausentismo/
+"""
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
+def write_assumptions(path: Path, baseline_years: tuple[int, ...], run_id: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    bl_str = ", ".join(str(y) for y in baseline_years)
+    text = f"""\
+# Supuestos y decisiones metodológicas
+
+> **AVISO OBLIGATORIO.** Los resultados de este análisis son **estimaciones
+> contrafactuales bajo supuestos explícitos**. No constituyen evidencia de
+> fraude, manipulación, supresión ni intención. Son señales para revisión
+> adicional por las autoridades electorales competentes (ONPE, JNE, JEE)
+> y la sociedad civil.
+
+## Identificador de corrida
+
+`{run_id}`
 
 ## Baseline elegido
 
-Baseline principal: **mediana/MAD sobre 2011, 2016 y 2021** (`baseline_robust_median_mad`).
+**Baseline principal**: mediana/MAD sobre años {bl_str}.
 
-**Por qué:** Combina los tres ciclos electorales históricos más recientes. La mediana es robusta
-ante el dato atípico de 2021 (pandemia). El MAD mide dispersión sin asumir normalidad.
-2006 se excluye del baseline principal por diferencias estructurales (tasa 11.3 %, padrón distinto).
+**Justificación**:
+- 2011 y 2016 son las elecciones pre-pandemia comparables estructuralmente a 2026.
+- 2021 se incluye para capturar variabilidad reciente, aunque es atípica (pandemia).
+- La mediana y MAD minimizan el peso de un único año atípico.
+- Se excluye 2006 del baseline principal por diferencias estructurales
+  (tasa agregada 11.29 %, esquema de mesas distinto, padrón menor).
 
-Baselines de robustez calculados en paralelo: corto (2011/16), largo (2006/11/16), reciente (2016/21).
+**Corrección metodológica aplicada**: `baseline_robust_median_mad` usa los años
+(2011, 2016, 2021), **no** solo (2011, 2016). Ver METHODOLOGY.md §2.4.
 
 ## Filtros aplicados
 
-- **Estado del acta**: solo mesas con estado terminal (`contabilizada_normal`, `resuelta`).
-  Se excluyen `sin_instalar`, `anulada`, `en_proceso`, `otro`.
-- **Electores hábiles**: se excluyen mesas con `electores_habiles = 0` o vacío.
-- **Votos emitidos**: se excluyen mesas con `votos_emitidos > electores_habiles`.
-- **Núcleo incompleto**: filas sin `electores_habiles`, `votos_emitidos` o `ausentes` no
-  entran a la inferencia de ubigeo.
+- **Estado del acta**: solo `terminal_normal` y `terminal_resuelto`.
+  Se excluyen `no_instalada`, `anulada_no_contabilizada`, `pendiente`, `desconocido`.
+  **Corrección metodológica aplicada**: el filtro se aplica **antes** de agregar
+  por ubigeo, no después.
+- **Mesas con `electores_habiles = 0`** o vacío: excluidas.
+- **Mesas con `votos_emitidos > electores_habiles`**: excluidas.
+- **Ubigeos con cobertura de baseline < 0.5**: marcados `baseline_insuficiente`.
 
 ## Modelos activados
 
-- **Modelo A** (distribución nacional 2026): `distribucion_nacional`
-- **Modelo B** (distribución local por ubigeo 2026): `distribucion_ubigeo`
-- **Modelo C** (matching territorial aproximado): `matching_ubigeos_aproximado`
-- **Modelo D** (bloque partidario): **no activado** — requiere archivo `bloques_partidarios.yaml`
-  pre-registrado.
+- **Modelo A**: distribución nacional 2026.
+- **Modelo B**: distribución local 2026 por ubigeo (estimación central).
+- **Modelo C**: distritos pareados (k={DEFAULT_K}, mismo departamento, cobertura=1.0).
+- **Modelo D**: desactivado (requiere bloques pre-registrados).
 
-## Decisiones no automatizables
+## Escenarios ejecutados
 
-- Los años de baseline fueron elegidos por el diseño metodológico en `docs/analisis_ausentismo/METHODOLOGY.md`;
-  no se optimizaron para producir ningún resultado específico.
-- El umbral de flag principal es z-robusto ≥ 3.5, conservador por diseño.
+S1–S8 según METHODOLOGY.md §7.1.
+
+## geographic_concentration.csv
+
+**Corrección metodológica aplicada**: tres niveles (ubigeo, provincia,
+departamento) con mediana z-robusto y % ubigeos flageados.
 
 ## Limitaciones reconocidas
 
-- El matching territorial usa distancia euclidiana sobre variables disponibles; no es causal.
-- 2021 incluye efectos pandemia; elevar el baseline esperado puede subestimar el exceso.
-- Los ubigeos sin dato en al menos un año de baseline quedan marcados `baseline_insuficiente`.
-- Las preferencias no observadas de electores ausentes **no** pueden conocerse; los modelos
-  A, B y C son supuestos, no observaciones.
+1. Supuestos de modelos no validados empíricamente.
+2. 2021 en baseline amplía rango por efecto pandemia.
+3. Esquemas de mesa distintos entre elecciones.
+4. Nombres de candidatos no comparables entre años.
+5. Cobertura de matching (Modelo C) puede ser insuficiente.
+6. Snapshot 2026 estático; refresh puede modificarlo.
 
-## {DISCLAIMER}
+## Aviso de no atribución de fraude
+
+Ningún resultado puede interpretarse como evidencia de fraude,
+manipulación electoral o supresión de votos.
 """
-    path.write_text(content, encoding="utf-8")
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
 
 
-def top_rows(rows: list[dict[str, str]], baseline: str, metric: str, limit: int) -> list[dict[str, str]]:
-    filtered = [row for row in rows if row.get("baseline") == baseline]
-    return sorted(filtered, key=lambda row: parse_float(row.get(metric, "")) or 0.0, reverse=True)[:limit]
+# ═══════════════════════════════════════════════════════════════════════════
+# Fase 12 — Reporte final
+# ═══════════════════════════════════════════════════════════════════════════
 
-
-def build_final_report(
-    report_path: Path,
-    audit_rows: list[dict[str, str]],
-    grouped: dict[tuple[int, str], UbigeoYear],
-    flags: list[dict[str, str]],
-    sensitivity: list[dict[str, str]],
-    scenarios: list[dict[str, str]],
-    output_dir: Path,
-) -> None:
-    national = []
-    for (year, ubigeo), item in grouped.items():
-        if ubigeo == "NACIONAL":
-            continue
-        if year not in {2006, 2011, 2016, 2021, 2026}:
-            continue
-    totals: dict[int, UbigeoYear] = {}
-    for item in grouped.values():
-        totals.setdefault(item.anio, UbigeoYear(item.anio, "NACIONAL", "", "", ""))
-        total = totals[item.anio]
-        total.mesas += item.mesas
-        total.electores_habiles += item.electores_habiles
-        total.votos_emitidos += item.votos_emitidos
-        total.ausentes += item.ausentes
-    for year, total in sorted(totals.items()):
-        national.append(
-            f"| {year} | {total.electores_habiles:,} | {total.votos_emitidos:,} | "
-            f"{total.ausentes:,} | {fmt(total.tasa_ausentismo)} |"
-        )
-
-    baseline_summary = []
-    for baseline in BASELINES:
-        rows = [row for row in flags if row["baseline"] == baseline]
-        positive = sum(parse_float(row["exceso_ausentes_positivo"]) or 0.0 for row in rows)
-        flagged = sum(1 for row in rows if row["flag_mad_3_5"] == "1")
-        baseline_summary.append(
-            f"| {baseline} | {len(rows):,} | {fmt(positive)} | {flagged:,} |"
-        )
-
-    central = "baseline_short_2011_2016"
-    top = top_rows(flags, central, "exceso_ausentes_positivo", 10)
-    top_lines = [
-        f"| {row['ubigeo']} | {row['departamento']} | {row['provincia']} | "
-        f"{row['exceso_ausentes_positivo']} | {row['exceso_relativo']} | {row['interpretacion_flag']} |"
-        for row in top
-    ]
-
-    scenario_summary: dict[tuple[str, str], float] = defaultdict(float)
-    for row in scenarios:
-        key = (row["baseline"], row["modelo_imputacion"])
-        scenario_summary[key] += parse_float(row["votos_imputados_contrafactuales"]) or 0.0
-    scenario_lines = [
-        f"| {baseline} | {model} | {fmt(value)} |"
-        for (baseline, model), value in sorted(scenario_summary.items())
-    ]
-
-    content = f"""# Reporte Final Preliminar - Analisis de Ausentismo Presidencial 2006-2026
-
-## Alcance y disclaimer
-
-{DISCLAIMER}
-
-Este reporte preliminar resume un flujo reproducible construido desde archivos versionados del repositorio. Los flags se interpretan exclusivamente como senales estadisticas para revision, no como prueba de irregularidad ni de intencionalidad.
-
-## Reproducibilidad
-
-- Commit: `{current_commit()}`
-- Fecha UTC de ejecucion: `{datetime.now(timezone.utc).isoformat()}`
-- Directorio de outputs: `{output_dir}`
-- Script: `analyze_ausentismo_presidencial.py`
-
-## Tasa nacional de ausentismo
-
-| Anio | Electores habiles | Votos emitidos | Ausentes | Tasa ausentismo |
-| --- | ---: | ---: | ---: | ---: |
-{chr(10).join(national)}
-
-## Exceso estimado por baseline
-
-| Baseline | UBIGEOs evaluados | Exceso positivo de ausentes | Flags MAD >= 3.5 |
-| --- | ---: | ---: | ---: |
-{chr(10).join(baseline_summary)}
-
-## Principales contribuciones bajo baseline central
-
-Baseline central: `baseline_short_2011_2016`.
-
-| UBIGEO | Departamento | Provincia | Exceso positivo | Exceso relativo | Interpretacion |
-| --- | --- | --- | ---: | ---: | --- |
-{chr(10).join(top_lines)}
-
-## Escenarios contrafactuales de votos
-
-Los votos imputados no son votos observados. Cada fila depende del baseline y del modelo de imputacion.
-
-| Baseline | Modelo | Votos imputados contrafactuales |
-| --- | --- | ---: |
-{chr(10).join(scenario_lines)}
-
-## Sensibilidad
-
-El archivo `sensitivity_summary.csv` resume sensibilidad por baseline, umbrales MAD y percentiles. Si los resultados cambian entre baselines, la lectura debe ser cautelosa y centrada en rangos.
-
-## Calidad de datos
-
-Los checks completos estan en `audit_checks.csv`. Puntos metodologicos relevantes:
-
-- 2006 se usa en el baseline largo con normalizacion de UBIGEO; no es el baseline central.
-- 2021 se usa como sensibilidad reciente por su contexto extraordinario.
-- Las filas con nucleo incompleto no se imputan para inferencia primaria.
-- La unidad primaria es UBIGEO; mesa se conserva como descomposicion secundaria.
-
-## Outputs generados
-
-- `audit_checks.csv`
-- `absenteeism_by_mesa.csv`
-- `absenteeism_by_ubigeo.csv`
-- `baselines_by_ubigeo.csv`
-- `excess_absenteeism_flags.csv`
-- `geographic_concentration.csv`
-- `candidate_impact_scenarios.csv`
-- `sensitivity_summary.csv`
-
-## Limitaciones pendientes
-
-- El matching territorial es una aproximacion defensible con variables disponibles, no un diseno causal.
-- No se modelan preferencias no observadas de personas ausentes.
-- No se incorporan covariables socioeconomicas externas ni cartografia oficial para mapas.
-- La comparabilidad mesa-a-mesa historica es limitada; por eso la inferencia primaria se mantiene en UBIGEO.
-"""
-    report_path.write_text(content, encoding="utf-8")
-
-
-def main() -> int:
-    start_utc = datetime.now(timezone.utc)
-    run_id = str(uuid.uuid4())
-
-    parser = build_argument_parser(
-        description=(
-            "Ejecuta el analisis reproducible de ausentismo presidencial 2006-2026 "
-            "con baselines historicos, flags estadisticos y escenarios contrafactuales."
-        ),
+def _md_table(headers: list[str], rows: list[list[str]]) -> str:
+    sep = "|" + "|".join("-" * max(4, len(h)) for h in headers) + "|"
+    return "\n".join(
+        ["|" + "|".join(headers) + "|", sep]
+        + ["|" + "|".join(r) + "|" for r in rows]
     )
-    parser.add_argument("--ausentismo-csv", default=str(DEFAULT_ABSENTEEISM_CSV))
-    parser.add_argument("--presidencial-2026", default=str(DEFAULT_PRESIDENTIAL_2026_CSV))
-    parser.add_argument("--outdir", default=str(DEFAULT_OUTPUT_DIR))
-    parser.add_argument("--report", default=str(DEFAULT_REPORT))
-    parser.add_argument("--matching-k", type=int, default=5)
+
+
+def generate_final_report(
+    report_path: Path,
+    run_id: str,
+    commit: str,
+    branch: str,
+    flag_rows: list[dict],
+    sensitivity_rows: list[dict],
+    input_hashes: dict[str, str],
+    baseline_years: tuple[int, ...],
+    ubigeo_groups: dict[tuple[int, str], dict],
+    dep_map: dict[str, str],
+) -> None:
+    # Tabla 1: indicadores agregados nacionales por año
+    by_year: dict[int, dict] = {}
+    for (anio, _), g in ubigeo_groups.items():
+        if anio not in by_year:
+            by_year[anio] = {"electores": 0, "emitidos": 0, "n_mesas": 0}
+        by_year[anio]["electores"] += g["electores"]
+        by_year[anio]["emitidos"]  += g["emitidos"]
+        by_year[anio]["n_mesas"]   += g["n_mesas"]
+
+    t1 = []
+    for yr in sorted(by_year.keys()):
+        d    = by_year[yr]
+        aus  = d["electores"] - d["emitidos"]
+        tasa = safe_div(aus, d["electores"])
+        t1.append([str(yr), f"{d['electores']:,}", f"{d['emitidos']:,}",
+                   f"{aus:,}", fmt(tasa, 4), str(d["n_mesas"])])
+
+    # Tabla 2: top-20 ubigeos por z-robusto
+    flagged_sorted = sorted(
+        [r for r in flag_rows if r["flag_z_robusto_3p5"] == "1"],
+        key=lambda x: parse_float(x["z_robusto"]) or 0, reverse=True
+    )[:20]
+    t3 = [[r["ubigeo"], r["departamento"][:20], r["provincia"][:20],
+           r["tasa_2026"], r["tasa_baseline"], r["z_robusto"], r["exceso_ausentes"]]
+          for r in flagged_sorted]
+
+    # Tabla 3: sensibilidad S1
+    s1 = sorted(
+        [r for r in sensitivity_rows if r["escenario"] == "S1"],
+        key=lambda x: parse_float(x["delta_votos_nacional"]) or 0, reverse=True
+    )[:15]
+    t4 = [[r["candidato"][:40], r["delta_votos_nacional"],
+           str(r["votos_observados_nacional"]), r["delta_pct_padron"],
+           r.get("delta_no_robusto", "0")] for r in s1]
+
+    n_flagged = sum(1 for r in flag_rows if r["flag_z_robusto_3p5"] == "1")
+    n_total   = len(flag_rows)
+    tot_exc   = sum(parse_float(r["exceso_ausentes"]) or 0.0 for r in flag_rows)
+    bl_str    = "+".join(str(y) for y in baseline_years)
+    fecha_utc = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    md = f"""\
+# REPORTE FINAL — Análisis de Ausentismo Presidencial 2026
+
+> **AVISO OBLIGATORIO.** Los resultados de este reporte son **estimaciones
+> contrafactuales bajo supuestos explícitos**. No constituyen evidencia de
+> fraude, manipulación, supresión ni intención. Son señales para revisión
+> adicional por las autoridades electorales competentes (ONPE, JNE, JEE)
+> y la sociedad civil.
+
+- **Fecha**: {fecha_utc}  |  **Run ID**: `{run_id}`
+- **Commit**: `{commit[:12]}`  |  **Rama**: `{branch}`
+- **Baseline principal**: mediana/MAD sobre {bl_str}
+
+---
+
+## 1. Resumen ejecutivo
+
+### Tabla 1 — Indicadores agregados nacionales por año
+
+{_md_table(
+    ["Año","Electores hábiles","Votos emitidos","Ausentes","Tasa","N mesas"],
+    t1,
+)}
+
+### Ubigeos flageados (z-robusto ≥ 3.5)
+
+- Ubigeos analizados: **{n_total:,}**
+- Flageados z ≥ 3.5: **{n_flagged:,}** ({100*n_flagged/n_total:.1f} %)
+- Exceso total de ausentes estimado: **{tot_exc:,.0f}** electores
+
+> Los ubigeos flageados **ameritan revisión adicional**; no constituyen
+> evidencia de irregularidad.
+
+---
+
+## 2. Alcance y aviso obligatorio
+
+Este análisis NO afirma: fraude, manipulación, supresión, intencionalidad,
+ni que el resultado oficial sea incorrecto.
+
+Este análisis SÍ produce: medición de diferencias estadísticas, distribución
+geográfica de ubigeos con desviaciones grandes, rangos contrafactuales bajo
+supuestos explícitos.
+
+Instituciones competentes para investigar irregularidades: ONPE, JNE, JEE,
+Ministerio Público, Defensoría del Pueblo, observadores nacionales/internacionales.
+
+---
+
+## 3. Fuentes de datos
+
+| Archivo | SHA-256 (primeros 16 chars) |
+|---------|------------------------------|
+{chr(10).join(f"| `{k.split('/')[-1]}` | `{v[:16]}…` |" for k, v in input_hashes.items())}
+
+---
+
+## 4. Calidad y comparabilidad
+
+| Año | Recomendación de uso |
+|-----|---------------------|
+| 2006 | Robustez secundaria — diferencias estructurales |
+| 2011 | Robustez secundaria — ~107k mesas vs ~77-88k |
+| 2016 | Baseline principal — pre-pandemia, alta comparabilidad |
+| 2021 | Incluido con etiqueta "ciclo atípico" (pandemia) |
+| 2026 | Año de evaluación |
+
+---
+
+## 5. Metodología
+
+- **Unidad de inferencia**: ubigeo distrital (~2,000)
+- **Baseline**: mediana/MAD sobre {bl_str} (corrección metodológica: incluye 2021)
+- **Umbral principal**: z-robusto ≥ 3.5
+- **Filtro de estado**: solo `terminal_normal` y `terminal_resuelto`, aplicado
+  **antes** de agregar por ubigeo (corrección metodológica)
+- **Modelos**: A (nacional), B (local), C (matching k=7 mismo departamento)
+- **Escenarios**: S1–S8 (ver `assumptions.md`)
+
+`z_robusto_u = (tasa_2026_u − tasa_baseline_u) / (1.4826 × MAD_u)`
+
+---
+
+## 6. Línea base histórica
+
+Tendencia creciente: 2006 (11.3%) → 2011 (16.3%) → 2016 (18.2%)
+→ 2021 (29.5%, pandemia). Ver Tabla 1.
+
+---
+
+## 7. Evaluación del ausentismo 2026
+
+### Tabla 2 — Top-20 ubigeos por z-robusto
+
+> *Ameritan revisión adicional, no constituyen evidencia de irregularidad.*
+
+{_md_table(
+    ["Ubigeo","Departamento","Provincia","Tasa 2026","Tasa baseline","Z-rob","Exc. aus."],
+    t3 or [["(sin datos)"]*7],
+)}
+
+---
+
+## 8. Concentración geográfica
+
+El archivo `geographic_concentration.csv` agrega en tres niveles:
+**ubigeo**, **provincia** y **departamento**, con mediana de z-robusto y
+% de ubigeos flageados por zona.
+
+> Concentración geográfica NO implica intención coordinada. Puede reflejar
+> factores estructurales (clima, logística, demografía).
+
+---
+
+## 9. Escenarios contrafactuales
+
+### Tabla 3 — S1 (baseline {bl_str}, Modelo B) — top candidatos
+
+> *Estimación contrafactual condicional. Cifras son escenarios, no hechos.*
+
+{_md_table(
+    ["Candidato","Delta votos","Votos obs.","% padrón","No robusto"],
+    t4 or [["(sin datos)"]*5],
+)}
+
+---
+
+## 10. Análisis de sensibilidad
+
+Ver `sensitivity_summary.csv`. Un candidato con `delta_no_robusto=1` cambia
+de signo en >20% de los escenarios — su delta no debe citarse como puntual.
+
+---
+
+## 11. Limitaciones
+
+1. Supuestos de modelos no validados empíricamente.
+2. 2021 en baseline amplía rango por pandemia.
+3. Esquemas de mesa no uniformes entre elecciones.
+4. Nombres de candidatos no comparables entre años.
+5. Modelo C depende de disponibilidad de ubigeos control por departamento.
+6. Snapshot 2026 estático; refresh puede modificarlo.
+7. Ningún modelo establece causalidad.
+
+---
+
+## 12. Conclusiones
+
+Los resultados describen diferencias estadísticas entre la tasa de ausentismo
+2026 y el baseline histórico. Las unidades territoriales flageadas constituyen
+una lista reproducible para que autoridades electorales, observadores e
+investigadores decidan si ameritan revisión adicional.
+
+> "Las estimaciones aquí presentadas son escenarios contrafactuales bajo
+> supuestos explícitos. Ofrecen una base cuantitativa para que las autoridades
+> electorales, observadores nacionales e internacionales y la sociedad civil
+> decidan si ciertas unidades territoriales merecen revisión adicional.
+> Cualquier interpretación más allá de ese alcance excede el propósito de
+> este reporte."
+
+---
+
+## 13. Apéndice de reproducibilidad
+
+- **Commit**: `{commit}`
+- **Rama**: `{branch}`
+- **Run ID**: `{run_id}`
+- **Comando**: `python3 analyze_ausentismo_presidencial.py`
+- **Config**: `data/output/analisis_ausentismo/config_run.yaml`
+- **Manifiesto**: `data/output/analisis_ausentismo/manifest_run.json`
+- **Supuestos**: `data/output/analisis_ausentismo/assumptions.md`
+
+| Archivo | Descripción |
+|---------|-------------|
+| `audit_checks.csv` | Verificaciones de calidad |
+| `absenteeism_by_mesa.csv` | Ausentismo por mesa × año |
+| `absenteeism_by_ubigeo.csv` | Ausentismo por ubigeo × año (terminal) |
+| `baselines_by_ubigeo.csv` | Mediana/MAD por ubigeo |
+| `excess_absenteeism_flags.csv` | Exceso y flags 2026 |
+| `geographic_concentration.csv` | Tres niveles: ubigeo/prov/dep |
+| `candidate_impact_scenarios.csv` | Impacto contrafactual S1-S8 |
+| `sensitivity_summary.csv` | Resumen de sensibilidad S1-S8 |
+| `manifest_run.json` | Metadatos de reproducibilidad |
+| `config_run.yaml` | Parámetros |
+| `assumptions.md` | Supuestos metodológicos |
+
+---
+*No citar resultados como evidencia de fraude, manipulación o supresión.*
+"""
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(report_path, "w", encoding="utf-8") as fh:
+        fh.write(md)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# main
+# ═══════════════════════════════════════════════════════════════════════════
+
+def main() -> None:
+    parser = build_argument_parser(
+        description=__doc__,
+        assisted_coauthors=("Claude Opus 4.7", "Claude Sonnet 4.6"),
+    )
+    parser.add_argument(
+        "--consolidado", type=Path,
+        default=Path("data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv"),
+        help="CSV consolidado histórico 2006-2026",
+    )
+    parser.add_argument(
+        "--detalle-2026", type=Path,
+        default=Path("data/output/por_votacion/mesas_presidencial.csv"),
+        help="CSV detallado de mesas 2026 (con candidatos)",
+    )
+    parser.add_argument(
+        "--outdir", type=Path,
+        default=Path("data/output/analisis_ausentismo"),
+        help="Directorio de salida",
+    )
+    parser.add_argument(
+        "--report", type=Path, default=Path("FINAL_REPORT.md"),
+        help="Ruta del reporte final Markdown",
+    )
+    parser.add_argument(
+        "--dep-map", type=Path,
+        default=Path("data_dictionary/ubigeo/departamentos.csv"),
+        help="Catálogo ubigeo → nombre departamento",
+    )
+    parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
+                        help="Semilla determinística (default: %(default)s)")
+    parser.add_argument("--k", type=int, default=DEFAULT_K,
+                        help="Vecinos en Modelo C (default: %(default)s)")
+    parser.add_argument("--k-min", type=int, default=DEFAULT_K_MIN,
+                        help="Mínimo vecinos Modelo C (default: %(default)s)")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {VERSION}")
     args = parser.parse_args()
 
-    absenteeism_path = Path(args.ausentismo_csv)
-    presidential_path = Path(args.presidencial_2026)
-    output_dir = Path(args.outdir)
-    report_path = Path(args.report)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    t_start = datetime.now(timezone.utc)
+    run_id  = str(uuid.uuid4())
+    commit, branch = git_info()
 
-    if not absenteeism_path.exists():
-        raise SystemExit(f"No existe el consolidado de ausentismo: {absenteeism_path}")
-    if not presidential_path.exists():
-        raise SystemExit(f"No existe el CSV presidencial 2026: {presidential_path}")
+    print(f"[analyze_ausentismo] run_id={run_id}")
+    print(f"[analyze_ausentismo] commit={commit[:12]}  branch={branch}")
 
-    mesa_rows, absenteeism_audit = read_absenteeism_rows(absenteeism_path)
-    grouped = aggregate_by_ubigeo(mesa_rows, terminal_only=True)
-    enrich_geography(grouped)
-    ubigeo_rows = [ubigeo_to_row(item) for item in sorted(grouped.values(), key=lambda x: (x.anio, x.ubigeo))]
-    baselines = build_baselines(grouped)
-    flags = build_excess_flags(grouped, baselines)
-    geographic = build_geographic_concentration(flags)
-    sensitivity = build_sensitivity_summary(flags)
-    candidate_votes_by_ubigeo, national_votes, candidate_labels = load_candidate_votes(presidential_path)
-    scenarios = build_candidate_scenarios(
-        flags,
-        grouped,
-        baselines,
-        candidate_votes_by_ubigeo,
-        national_votes,
-        candidate_labels,
-        max(1, args.matching_k),
-    )
-    audit_rows = build_audit_checks(
-        [absenteeism_path, presidential_path], absenteeism_audit, grouped, output_dir
-    )
+    for p in (args.consolidado, args.detalle_2026):
+        if not p.exists():
+            print(f"ERROR: archivo no encontrado: {p}", file=sys.stderr)
+            sys.exit(1)
 
-    counts = {
-        "audit_checks.csv": write_csv(output_dir / "audit_checks.csv", audit_rows),
-        "absenteeism_by_mesa.csv": write_csv(
-            output_dir / "absenteeism_by_mesa.csv", mesa_rows, ABSENTEEISM_FIELDS
-        ),
-        "absenteeism_by_ubigeo.csv": write_csv(output_dir / "absenteeism_by_ubigeo.csv", ubigeo_rows),
-        "baselines_by_ubigeo.csv": write_csv(output_dir / "baselines_by_ubigeo.csv", baselines),
-        "excess_absenteeism_flags.csv": write_csv(
-            output_dir / "excess_absenteeism_flags.csv", flags
-        ),
-        "geographic_concentration.csv": write_csv(
-            output_dir / "geographic_concentration.csv", geographic
-        ),
-        "candidate_impact_scenarios.csv": write_csv(
-            output_dir / "candidate_impact_scenarios.csv", scenarios
-        ),
-        "sensitivity_summary.csv": write_csv(output_dir / "sensitivity_summary.csv", sensitivity),
+    print("[analyze_ausentismo] Calculando hashes de inputs...")
+    input_hashes = {
+        str(args.consolidado):  sha256_file(args.consolidado),
+        str(args.detalle_2026): sha256_file(args.detalle_2026),
     }
-    build_final_report(report_path, audit_rows, grouped, flags, sensitivity, scenarios, output_dir)
 
-    config_path = output_dir / "config_run.yaml"
-    write_config_yaml(config_path, BASELINES, args)
+    dep_map = load_dep_map(args.dep_map)
 
-    assumptions_path = output_dir / "assumptions.md"
-    write_assumptions_md(assumptions_path, run_id)
+    # ── Carga ──────────────────────────────────────────────────────────────
+    print("[analyze_ausentismo] Cargando consolidado...")
+    rows = load_consolidado(args.consolidado)
+    print(f"[analyze_ausentismo] {len(rows):,} filas cargadas")
 
-    end_utc = datetime.now(timezone.utc)
-    output_paths = [output_dir / name for name in counts] + [report_path, config_path, assumptions_path]
-    manifest_path = output_dir / "manifest_run.json"
-    write_manifest_json(
-        manifest_path,
-        run_id,
-        start_utc,
-        end_utc,
-        [absenteeism_path, presidential_path],
-        output_paths,
-        counts,
-        args,
+    # ── Auditoría ──────────────────────────────────────────────────────────
+    print("[analyze_ausentismo] Generando audit_checks.csv...")
+    audit_checks = build_audit_checks(rows)
+    audit_path   = args.outdir / "audit_checks.csv"
+    write_csv(audit_path, ["check_type","anio","resultado","n","descripcion"], audit_checks)
+
+    # ── Ausentismo por mesa ────────────────────────────────────────────────
+    print("[analyze_ausentismo] Generando absenteeism_by_mesa.csv...")
+    mesa_rows = build_absenteeism_by_mesa(rows)
+    mesa_path = args.outdir / "absenteeism_by_mesa.csv"
+    write_csv(mesa_path, [
+        "anio","codigo_mesa","ubigeo","departamento","provincia","distrito",
+        "estado_acta_original","estado_acta_categoria",
+        "electores_habiles","votos_emitidos","ausentes",
+        "tasa_ausentismo","excluir_de_inferencia",
+    ], mesa_rows)
+
+    # ── Ausentismo por ubigeo (corrección: filtrar terminal antes de agregar) ──
+    print("[analyze_ausentismo] Generando absenteeism_by_ubigeo.csv...")
+    ubigeo_groups = aggregate_by_ubigeo(rows, terminal_only=True)
+    ubigeo_rows   = build_absenteeism_by_ubigeo_rows(ubigeo_groups, dep_map)
+    ubigeo_path   = args.outdir / "absenteeism_by_ubigeo.csv"
+    write_csv(ubigeo_path, [
+        "anio","ubigeo","departamento","provincia","n_mesas",
+        "electores_habiles","votos_emitidos","ausentes","tasa_ausentismo",
+    ], ubigeo_rows)
+
+    # Mapa provincia desde histórico para nombres vacíos en 2026
+    prov_from_hist: dict[str, str] = {}
+    for g in ubigeo_groups.values():
+        k4 = g["ubigeo"][:4]
+        if k4 not in prov_from_hist and g["provincia"]:
+            prov_from_hist[k4] = g["provincia"]
+
+    # ── Baseline robusto (2011, 2016, 2021) ───────────────────────────────
+    print("[analyze_ausentismo] Construyendo baselines (2011+2016+2021)...")
+    baselines = build_baselines(ubigeo_groups, BASELINE_ROBUST, dep_map)
+    bl_path   = args.outdir / "baselines_by_ubigeo.csv"
+    write_csv(bl_path, [
+        "ubigeo","departamento","n_anios_baseline","tasa_baseline",
+        "mad","sigma","cobertura","baseline_insuficiente",
+    ], build_baselines_rows(baselines))
+
+    # ── Exceso y flags 2026 ────────────────────────────────────────────────
+    print("[analyze_ausentismo] Calculando exceso y flags 2026...")
+    ubigeo_2026 = {
+        ubigeo: g for (anio, ubigeo), g in ubigeo_groups.items() if anio == 2026
+    }
+    flag_rows = compute_flags(ubigeo_2026, baselines, dep_map, prov_from_hist)
+    flag_path = args.outdir / "excess_absenteeism_flags.csv"
+    write_csv(flag_path, [
+        "ubigeo","departamento","provincia","electores_2026","votos_2026",
+        "tasa_2026","tasa_baseline","sigma","exceso_absoluto","exceso_relativo",
+        "z_robusto","exceso_ausentes",
+        "flag_z_robusto_3p5","flag_z_robusto_5","flag_exceso_5pp",
+        "flag_exceso_10pp","flag_relativo_25","flag_baseline_insuficiente",
+    ], flag_rows)
+    n_flagged = sum(1 for r in flag_rows if r["flag_z_robusto_3p5"] == "1")
+    print(f"[analyze_ausentismo] {len(flag_rows):,} ubigeos — {n_flagged:,} con z≥3.5")
+
+    # ── Concentración geográfica (tres niveles) ────────────────────────────
+    print("[analyze_ausentismo] Generando geographic_concentration.csv...")
+    geo_rows = build_geographic_concentration(flag_rows)
+    geo_path = args.outdir / "geographic_concentration.csv"
+    write_csv(geo_path, [
+        "nivel","codigo","zona_nombre","n_ubigeos_total","n_ubigeos_flagged",
+        "pct_ubigeos_flagged","mediana_z_robusto","total_exceso_ausentes","total_electores",
+    ], geo_rows)
+
+    # ── Candidatos 2026 ────────────────────────────────────────────────────
+    print("[analyze_ausentismo] Cargando candidatos 2026...")
+    ubigeo_cands, national_cands = load_candidates_2026(args.detalle_2026)
+    print(f"[analyze_ausentismo] {len(national_cands):,} candidatos/opciones")
+
+    # ── Escenarios S1-S8 ───────────────────────────────────────────────────
+    print("[analyze_ausentismo] Ejecutando escenarios S1-S8...")
+    all_impact:   list[dict] = []
+    all_summary:  list[dict] = []
+    for scen_id, scen in SCENARIOS.items():
+        bl_tag = "+".join(str(y) for y in scen["baseline"])
+        print(f"  → {scen_id} baseline={bl_tag} model={scen['model']} "
+              f"terminal={scen['terminal_only']} excl_ext={scen['excl_ext']}")
+        imp, summ = run_scenario(
+            scenario_id=scen_id,
+            baseline_years=scen["baseline"],
+            model_id=scen["model"],
+            terminal_only=scen["terminal_only"],
+            excl_ext=scen["excl_ext"],
+            rows=rows,
+            dep_map=dep_map,
+            ubigeo_cands=ubigeo_cands,
+            national_cands=national_cands,
+            k=args.k, k_min=args.k_min, seed=args.seed,
+        )
+        all_impact.extend(imp)
+        all_summary.extend(summ)
+
+    impact_path = args.outdir / "candidate_impact_scenarios.csv"
+    write_csv(impact_path, [
+        "escenario","baseline","modelo","ubigeo","candidato",
+        "votos_observados","delta_votos","share_imputado",
+        "exceso_ausentes","match_insuficiente",
+    ], all_impact)
+
+    sensitivity_rows = build_sensitivity(all_summary)
+    sens_path = args.outdir / "sensitivity_summary.csv"
+    write_csv(sens_path, [
+        "escenario","baseline","modelo","candidato",
+        "delta_votos_nacional","votos_observados_nacional","delta_pct_padron",
+        "coef_variacion","prop_signo_positivo","delta_no_robusto",
+    ], sensitivity_rows)
+    print(f"[analyze_ausentismo] {len(all_impact):,} filas de impacto generadas")
+
+    # ── Manifiesto, config, supuestos ──────────────────────────────────────
+    t_end    = datetime.now(timezone.utc)
+    duration = (t_end - t_start).total_seconds()
+
+    output_paths = [
+        audit_path, mesa_path, ubigeo_path, bl_path,
+        flag_path, geo_path, impact_path, sens_path,
+    ]
+    print("[analyze_ausentismo] Calculando hashes de outputs...")
+    output_hashes = {str(p): sha256_file(p) for p in output_paths}
+
+    params = {
+        "version": VERSION,
+        "baseline_robust": list(BASELINE_ROBUST),
+        "min_coverage": MIN_COVERAGE,
+        "k": args.k, "k_min": args.k_min, "seed": args.seed,
+        "mc_n": DEFAULT_MC_N,
+        "consolidado": str(args.consolidado),
+        "detalle_2026": str(args.detalle_2026),
+        "outdir": str(args.outdir),
+    }
+    n_rows_by_stage = {
+        "consolidado": len(rows),
+        "audit_checks": len(audit_checks),
+        "absenteeism_by_mesa": len(mesa_rows),
+        "absenteeism_by_ubigeo": len(ubigeo_rows),
+        "baselines": len(baselines),
+        "flags": len(flag_rows),
+        "geo_concentration": len(geo_rows),
+        "candidate_impact": len(all_impact),
+        "sensitivity": len(sensitivity_rows),
+    }
+
+    manifest_path = args.outdir / "manifest_run.json"
+    write_manifest(manifest_path, run_id, commit, branch,
+                   params, input_hashes, output_hashes,
+                   duration, n_rows_by_stage)
+    output_hashes[str(manifest_path)] = sha256_file(manifest_path)
+
+    write_config_yaml(args.outdir / "config_run.yaml", params)
+    write_assumptions(args.outdir / "assumptions.md", BASELINE_ROBUST, run_id)
+
+    print("[analyze_ausentismo] Generando FINAL_REPORT.md...")
+    generate_final_report(
+        report_path=args.report,
+        run_id=run_id,
+        commit=commit,
+        branch=branch,
+        flag_rows=flag_rows,
+        sensitivity_rows=sensitivity_rows,
+        input_hashes=input_hashes,
+        baseline_years=BASELINE_ROBUST,
+        ubigeo_groups=ubigeo_groups,
+        dep_map=dep_map,
     )
 
-    print("Analisis de ausentismo presidencial completado.")
-    print(f"Run ID: {run_id}")
-    print(f"Disclaimer: {DISCLAIMER}")
-    for filename, count in counts.items():
-        print(f"{filename}: {count} filas")
-    print(f"Reporte final preliminar: {report_path}")
-    print(f"Manifiesto: {manifest_path}")
-    return 0
+    print(f"[analyze_ausentismo] Completado en {duration:.1f}s")
+    print(f"[analyze_ausentismo] Salidas en: {args.outdir}/")
+    print(f"[analyze_ausentismo] Reporte:    {args.report}")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
