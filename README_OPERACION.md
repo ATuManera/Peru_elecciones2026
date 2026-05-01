@@ -91,7 +91,18 @@ Salida esperada:
 
 ```text
 data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv
+data/output/catalogos/ubigeo_onpe_catalog.csv
 ```
+
+El catálogo `ubigeo_onpe_catalog.csv` se deriva de históricos ONPE del repositorio y es la fuente de verdad territorial para completar nombres de departamento, provincia y distrito en 2026 cuando el mismo `ubigeo` existe. No usar `data_dictionary/ubigeo/departamentos.csv` para etiquetar estos datasets ONPE salvo demostración explícita de compatibilidad: la codificación territorial ONPE observada aquí no debe asumirse equivalente a catálogos externos.
+
+Validación territorial mínima:
+
+```bash
+python3 validate_ubigeo_onpe_mapping.py
+```
+
+Debe confirmar que la mesa `050915` de 2026 queda en `ubigeo=140130`, `LIMA / LIMA / SANTIAGO DE SURCO`, y que ningún registro ONPE del consolidado de ausentismo con prefijo `14` queda rotulado como `LAMBAYEQUE`.
 
 ## Flujo Ocasional
 
