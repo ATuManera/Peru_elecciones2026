@@ -12,6 +12,7 @@ Este repositorio queda enfocado en cuatro tareas:
 2. Mantener estado local de descarga en SQLite para poder reanudar.
 3. Reconstruir `mesas_consolidado.csv` desde los JSON descargados.
 4. Separar el consolidado en archivos por elección.
+5. Consolidar una tabla comparativa de ausentismo presidencial por mesa para 2006, 2011, 2016, 2021 y 2026.
 
 ## Disponibilidad Pública de los Datos
 
@@ -34,6 +35,7 @@ El proyecto simplificado conserva solo el flujo operativo de datos ONPE:
 - `onpe_scraper.py`: descarga, estado SQLite, rebuild de CSV y reportes básicos.
 - `refresh_presidencial_only_v2.py`: refresh incremental solo de Presidencial (`idEleccion = 10`).
 - `split_mesas_por_votacion.py`: split del consolidado en 5 archivos por elección.
+- `build_ausentismo_presidencial.py`: consolidación de ausentismo presidencial por mesa con fuentes históricas ONPE y datos 2026.
 - `README_OPERACION.md`: guía corta de operación diaria.
 
 Queda fuera del flujo principal el pipeline grande de análisis estadístico ubicado en `src/fraud_detector`. Ese código se considera legado/experimental y no es necesario para descargar, consolidar ni separar los datos ONPE.
@@ -78,6 +80,7 @@ Comandos instalados:
 onpe-scraper --help
 onpe-split-votacion --help
 onpe-refresh-presidencial --help
+onpe-build-ausentismo --help
 ```
 
 ## Uso de la API de ONPE
@@ -196,19 +199,48 @@ python3 split_mesas_por_votacion.py \
   --outdir ./data/output/por_votacion
 ```
 
+### 4. Consolidar ausentismo presidencial histórico
+
+Los archivos históricos oficiales descargados de ONPE para primera vuelta presidencial se ubican en:
+
+```text
+data/input/onpe_historico/presidencial_primera_vuelta/
+```
+
+La fuente oficial de descarga es:
+
+```text
+https://www.onpe.gob.pe/elecciones/historico-elecciones/
+```
+
+Esta ubicación separa insumos externos de ONPE (`data/input`) de archivos reconstruidos por el proyecto (`data/output`). Se conservan los nombres originales de los archivos para mantener trazabilidad con la descarga oficial.
+
+Para generar la tabla consolidada de ausentismo presidencial por mesa:
+
+```bash
+python3 build_ausentismo_presidencial.py \
+  --input-dir ./data/input/onpe_historico/presidencial_primera_vuelta \
+  --presidencial-2026 ./data/output/por_votacion/mesas_presidencial.csv \
+  --out ./data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv
+```
+
+La salida contiene una fila por mesa y año, con electores hábiles, votos emitidos, ausentes y tasa de ausentismo. Para 2006, 2011, 2016 y 2021 utiliza los archivos históricos oficiales de ONPE; para 2026 utiliza el CSV presidencial generado por este repositorio. Algunas mesas pueden tener campos centrales vacíos si el acta no cuenta con cómputo completo en la fuente disponible; esas filas se conservan para no alterar la cobertura territorial.
+
 ## Estructura de Datos
 
-Directorios generados:
+Directorios y archivos principales:
 
+- `data/input/onpe_historico/presidencial_primera_vuelta/`: insumos históricos oficiales de ONPE para primera vuelta presidencial 2006, 2011, 2016 y 2021, junto con sus diccionarios de datos.
 - `data/raw_json/`: JSON crudos por mesa.
 - `data/state/onpe_scraper.sqlite`: estado local de descarga y control.
 - `data/output/mesas_consolidado.csv`: consolidado reconstruido.
 - [`data/output/por_votacion/mesas_presidencial.csv`](https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/por_votacion/mesas_presidencial.csv?download=1): detalle del resultado de la votación presidencial. Click para descargar el CSV directamente.
 - `data/output/por_votacion/`: detalle del resto de elecciones en CSV separados por elección.
+- `data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`: tabla consolidada de ausentismo presidencial por mesa y año.
 - `data/reports/`: reportes básicos del scraper.
 - `data/manifests/`: manifiesto de descarga.
 
-Estos archivos son reconstruibles y pueden ser grandes, por eso están fuera de git por defecto.
+Los archivos en `data/output/`, `data/reports/` y `data/manifests/` son reconstruibles y pueden ser grandes. Los insumos bajo `data/input/` son fuentes externas históricas conservadas para reproducibilidad del análisis.
 
 Para descargar el CSV presidencial desde terminal:
 
