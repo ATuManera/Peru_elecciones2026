@@ -197,6 +197,7 @@ python3 onpe_scraper.py --out ./data --rebuild-csv
 python3 split_mesas_por_votacion.py \
   --input ./data/output/mesas_consolidado.csv \
   --outdir ./data/output/por_votacion
+python3 build_ausentismo_presidencial.py
 ```
 
 ### 4. Consolidar ausentismo presidencial histórico
@@ -236,7 +237,7 @@ Directorios y archivos principales:
 - `data/output/mesas_consolidado.csv`: consolidado reconstruido.
 - [`data/output/por_votacion/mesas_presidencial.csv`](https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/por_votacion/mesas_presidencial.csv?download=1): detalle del resultado de la votación presidencial. Click para descargar el CSV directamente.
 - `data/output/por_votacion/`: detalle del resto de elecciones en CSV separados por elección.
-- `data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`: tabla consolidada de ausentismo presidencial por mesa y año.
+- [`data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`](https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv?download=1): tabla consolidada de ausentismo presidencial por mesa y año. Click para descargar el CSV directamente.
 - `data/reports/`: reportes básicos del scraper.
 - `data/manifests/`: manifiesto de descarga.
 
@@ -248,6 +249,14 @@ Para descargar el CSV presidencial desde terminal:
 curl -L \
   -o mesas_presidencial.csv \
   "https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/por_votacion/mesas_presidencial.csv?download=1"
+```
+
+Para descargar el CSV consolidado de ausentismo presidencial desde terminal:
+
+```bash
+curl -L \
+  -o mesas_ausentismo_presidencial_2006_2026.csv \
+  "https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv?download=1"
 ```
 
 Nota: los archivos de resultados están versionados con extensión `.csv`. GitHub puede mostrarlos en el navegador como texto por el tipo de visualización del sitio o por Git LFS, pero el archivo descargado conserva la extensión y estructura CSV. Para archivos grandes, se recomienda usar el enlace con `?download=1`, `curl -L` o la opción del navegador "Guardar enlace como...".

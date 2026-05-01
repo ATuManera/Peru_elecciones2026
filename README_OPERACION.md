@@ -79,6 +79,20 @@ Archivos esperados:
 - `mesas_senadores_distrito_electoral_multiple.csv`
 - `mesas_senadores_distrito_electoral_unico.csv`
 
+### 5. Reconstruir consolidado de ausentismo
+
+Si el refresh presidencial cambió datos 2026, después del rebuild y del split también se debe regenerar el consolidado histórico de ausentismo:
+
+```bash
+python3 build_ausentismo_presidencial.py
+```
+
+Salida esperada:
+
+```text
+data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv
+```
+
 ## Flujo Ocasional
 
 ### Revisar Presidencial en `Para envío al JEE`
@@ -92,13 +106,14 @@ python3 refresh_presidencial_only_v2.py \
   --estado "Para envío al JEE"
 ```
 
-Después, volver a correr rebuild y split:
+Después, volver a correr rebuild, split y consolidado de ausentismo:
 
 ```bash
 python3 onpe_scraper.py --out ./data --rebuild-csv
 python3 split_mesas_por_votacion.py \
   --input ./data/output/mesas_consolidado.csv \
   --outdir ./data/output/por_votacion
+python3 build_ausentismo_presidencial.py
 ```
 
 ## Smoke Test
@@ -129,6 +144,7 @@ python3 refresh_presidencial_only_v2.py \
 
 - `./data/output/mesas_consolidado.csv`
 - `./data/output/por_votacion/mesas_presidencial.csv`
+- `./data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`
 - `./data/state/onpe_scraper.sqlite`
 - `./cookie.txt`
 
