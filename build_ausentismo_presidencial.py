@@ -325,7 +325,8 @@ def main() -> int:
         description=(
             "Construye una tabla consolidada de ausentismo presidencial por mesa "
             "para 2006, 2011, 2016, 2021 y 2026."
-        )
+        ),
+        assisted_coauthors=("GPT-5.5",),
     )
     parser.add_argument(
         "--input-dir",
