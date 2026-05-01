@@ -1,6 +1,6 @@
 [project]
 name = "onpe-actas-scraper"
-version = "0.1.0"
+version = "0.2.0"
 license = "Apache-2.0"
 authors = [{ name = "A Tu Manera Digital - Fernando Gallarday" }]
 description = "Scraper operativo para descargar, consolidar y separar actas ONPE Elecciones 2026"

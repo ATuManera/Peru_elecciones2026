@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](pyproject.toml)
 
 Herramientas operativas para descargar actas desde la API pública de ONPE, reconstruir un CSV consolidado y separar los resultados por tipo de elección.
 
@@ -27,6 +27,15 @@ Este proyecto se publica bajo la **Apache License 2.0**.
 Copyright 2026 A Tu Manera Digital - Fernando Gallarday.
 
 Ver `LICENSE` para los términos completos y `NOTICE` para la atribución del proyecto.
+
+## Versionado
+
+El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.2.0**.
+
+- `0.1.0`: flujo base para descargar, reconstruir y separar resultados ONPE 2026.
+- `0.2.0`: incorpora insumos históricos oficiales de ONPE, el script `build_ausentismo_presidencial.py` y el CSV consolidado de ausentismo presidencial 2006-2026.
+
+Los datos publicados tienen un ciclo de actualización distinto al del código: pueden cambiar con cada refresh incremental, rebuild y split. Para reproducibilidad, se recomienda citar la ruta del archivo, la fecha de descarga o actualización y el commit de GitHub usado como referencia.
 
 ## Alcance Actual
 
