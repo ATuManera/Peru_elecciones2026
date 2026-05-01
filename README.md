@@ -336,7 +336,7 @@ Resumen ejecutivo de campos:
 | --- | --- | --- |
 | Identificación temporal y fuente | `anio`, `fuente`, `fuente_url` | Indican el año electoral, el archivo de origen usado y, cuando corresponde, la URL oficial de referencia. Sirven para trazabilidad y reproducibilidad. |
 | Identificación de mesa | `codigo_mesa` | Código de mesa normalizado como texto de seis dígitos. Debe tratarse como texto para conservar ceros a la izquierda. |
-| Ubicación electoral | `ubigeo`, `departamento`, `provincia`, `distrito`, `centro_poblado`, `local_votacion` | Variables territoriales disponibles según la fuente. En históricos se incluyen nombres de departamento/provincia/distrito; en 2026 se prioriza `ubigeo`, centro poblado y local cuando están disponibles. |
+| Ubicación electoral | `ubigeo`, `departamento`, `provincia`, `distrito`, `centro_poblado`, `local_votacion` | Variables territoriales según codificación ONPE. En 2026 los nombres de departamento/provincia/distrito se derivan del catálogo ONPE histórico del repositorio cuando el mismo `ubigeo` existe. |
 | Contexto electoral y estado | `tipo_eleccion`, `estado_acta`, `tipo_observacion` | Permiten filtrar por elección presidencial y separar mesas según estado o condición del acta antes de comparar tasas. |
 | Totales de participación | `electores_habiles`, `votos_emitidos`, `ausentes`, `tasa_ausentismo` | Núcleo del análisis de ausentismo. `ausentes = electores_habiles - votos_emitidos`; `tasa_ausentismo = ausentes / electores_habiles`. |
 | Composición del voto | `votos_validos`, `votos_blancos`, `votos_nulos`, `votos_impugnados`, `votos_no_validos` | Métricas complementarias para reconciliar participación y calidad del voto. `votos_no_validos` consolida blancos, nulos e impugnados cuando esos campos están disponibles. |
@@ -344,10 +344,14 @@ Resumen ejecutivo de campos:
 Consideraciones de uso:
 
 - `codigo_mesa` y `ubigeo` deben leerse como texto, no como enteros.
-- La comparabilidad territorial debe hacerse preferentemente por `ubigeo`; los nombres de departamento, provincia y distrito pueden variar entre años o no estar disponibles con el mismo nivel de detalle.
+- La codificación territorial ONPE de estos datasets no debe asumirse equivalente a INEI, RENIEC u otros catálogos externos. Por ejemplo, en estos archivos `140130` corresponde a `LIMA / LIMA / SANTIAGO DE SURCO`.
+- El catálogo territorial compatible con ONPE se genera en `data/output/catalogos/ubigeo_onpe_catalog.csv` desde históricos ONPE ya presentes en el repositorio. Sus columnas son `ubigeo`, `departamento`, `provincia`, `distrito`, `fuente_anios` y `n_observaciones`.
+- `data_dictionary/ubigeo/departamentos.csv` no debe usarse para etiquetar estos outputs ONPE salvo demostración explícita de compatibilidad; en ese catálogo externo `14` no representa la misma codificación que el `14` observado en los JSON ONPE 2026 del repo.
+- La comparabilidad territorial debe hacerse preferentemente por `ubigeo`; los nombres de departamento, provincia y distrito pueden variar entre años o no estar disponibles con el mismo nivel de detalle. Si un `ubigeo` 2026 no existe en el histórico ONPE usado como fuente de verdad, queda marcado como `NO_RESUELTO_ONPE` en lugar de recibir un fallback externo.
 - Algunas filas pueden tener campos centrales vacíos si el acta no cuenta con cómputo completo en la fuente disponible. Se conservan para preservar cobertura y trazabilidad.
 - Antes de calcular tendencias, conviene filtrar o segmentar por `estado_acta`, porque mezclar actas contabilizadas con actas pendientes u observadas puede distorsionar la tasa de ausentismo.
 - Para 2026, el consolidado depende del último refresh, rebuild y split ejecutado; si cambia `mesas_presidencial.csv`, debe regenerarse este archivo.
+- La validación operativa del mapeo se ejecuta con `python3 validate_ubigeo_onpe_mapping.py`; verifica, entre otros casos, que la mesa `050915` quede asociada a `ubigeo=140130`, `LIMA`, `LIMA`, `SANTIAGO DE SURCO`.
 
 ## Cookie
 

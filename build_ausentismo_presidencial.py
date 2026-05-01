@@ -4,11 +4,12 @@ from __future__ import annotations
 import csv
 import re
 import zipfile
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import chain
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 from xml.etree import ElementTree as ET
 
 from project_metadata import build_argument_parser
@@ -17,7 +18,9 @@ from project_metadata import build_argument_parser
 DEFAULT_INPUT_DIR = Path("data/input/onpe_historico/presidencial_primera_vuelta")
 DEFAULT_2026_CSV = Path("data/output/por_votacion/mesas_presidencial.csv")
 DEFAULT_OUTPUT = Path("data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv")
+DEFAULT_CATALOG = Path("data/output/catalogos/ubigeo_onpe_catalog.csv")
 ONPE_HISTORICAL_URL = "https://www.onpe.gob.pe/elecciones/historico-elecciones/"
+UNRESOLVED_TERRITORY = "NO_RESUELTO_ONPE"
 
 OUTPUT_FIELDS = [
     "anio",
@@ -43,6 +46,14 @@ OUTPUT_FIELDS = [
     "ausentes",
     "tasa_ausentismo",
 ]
+CATALOG_FIELDS = [
+    "ubigeo",
+    "departamento",
+    "provincia",
+    "distrito",
+    "fuente_anios",
+    "n_observaciones",
+]
 
 
 @dataclass(frozen=True)
@@ -50,6 +61,15 @@ class HistoricalSource:
     year: int
     filename: str
     kind: str
+
+
+@dataclass(frozen=True)
+class UbigeoTerritory:
+    departamento: str
+    provincia: str
+    distrito: str
+    fuente_anios: str
+    n_observaciones: int
 
 
 HISTORICAL_SOURCES = [
@@ -85,6 +105,15 @@ def text(value: object) -> str:
     value_text = str(value).strip()
     if value_text.lower() in {"nan", "none", "null"}:
         return ""
+    return value_text
+
+
+def normalize_ubigeo(value: object) -> str:
+    value_text = text(value).strip('"')
+    if not value_text:
+        return ""
+    if value_text.isdigit():
+        return value_text.zfill(6)
     return value_text
 
 
@@ -225,7 +254,7 @@ def normalize_historical_row(year: int, source_file: str, row: dict[str, object]
         "fuente": source_file,
         "fuente_url": ONPE_HISTORICAL_URL,
         "codigo_mesa": normalized_mesa(row.get("MESA_DE_VOTACION")),
-        "ubigeo": text(row.get("UBIGEO")),
+        "ubigeo": normalize_ubigeo(row.get("UBIGEO")),
         "departamento": text(row.get("DEPARTAMENTO")),
         "provincia": text(row.get("PROVINCIA")),
         "distrito": text(row.get("DISTRITO")),
@@ -246,7 +275,26 @@ def normalize_historical_row(year: int, source_file: str, row: dict[str, object]
     }
 
 
-def normalize_2026_row(row: dict[str, object]) -> dict[str, object]:
+def resolve_territory(
+    ubigeo: str,
+    catalog: Mapping[str, UbigeoTerritory] | None,
+    unresolved_ubigeos: set[str] | None = None,
+) -> tuple[str, str, str]:
+    if not ubigeo or catalog is None:
+        return "", "", ""
+    territory = catalog.get(ubigeo)
+    if territory is None:
+        if unresolved_ubigeos is not None:
+            unresolved_ubigeos.add(ubigeo)
+        return UNRESOLVED_TERRITORY, UNRESOLVED_TERRITORY, UNRESOLVED_TERRITORY
+    return territory.departamento, territory.provincia, territory.distrito
+
+
+def normalize_2026_row(
+    row: dict[str, object],
+    catalog: Mapping[str, UbigeoTerritory] | None = None,
+    unresolved_ubigeos: set[str] | None = None,
+) -> dict[str, object]:
     electores = parse_int(row.get("totalElectoresHabiles"))
     emitidos = parse_int(row.get("totalVotosEmitidos"))
     validos = parse_int(row.get("totalVotosValidos"))
@@ -255,16 +303,18 @@ def normalize_2026_row(row: dict[str, object]) -> dict[str, object]:
     impugnados = parse_int(row.get("detalle_82_nvotos"))
     no_validos = sum(value for value in (blancos, nulos, impugnados) if value is not None)
     ausentes = electores - emitidos if electores is not None and emitidos is not None else None
+    ubigeo = normalize_ubigeo(row.get("ubigeoNivel03"))
+    departamento, provincia, distrito = resolve_territory(ubigeo, catalog, unresolved_ubigeos)
 
     return {
         "anio": 2026,
         "fuente": str(DEFAULT_2026_CSV),
         "fuente_url": "",
         "codigo_mesa": normalized_mesa(row.get("codigoMesa")),
-        "ubigeo": text(row.get("ubigeoNivel03")),
-        "departamento": "",
-        "provincia": "",
-        "distrito": "",
+        "ubigeo": ubigeo,
+        "departamento": departamento,
+        "provincia": provincia,
+        "distrito": distrito,
         "centro_poblado": text(row.get("centroPoblado")),
         "local_votacion": text(row.get("nombreLocalVotacion")),
         "tipo_eleccion": "PRESIDENCIAL",
@@ -299,13 +349,100 @@ def iter_historical_rows(input_dir: Path) -> Iterable[dict[str, object]]:
             yield normalize_historical_row(source.year, source.filename, row)
 
 
-def iter_2026_rows(path: Path) -> Iterable[dict[str, object]]:
+def build_ubigeo_catalog(
+    rows: Iterable[dict[str, object]],
+) -> tuple[dict[str, UbigeoTerritory], dict[str, Counter[tuple[str, str, str]]]]:
+    counts: dict[str, Counter[tuple[str, str, str]]] = defaultdict(Counter)
+    years: dict[str, dict[tuple[str, str, str], set[int]]] = defaultdict(lambda: defaultdict(set))
+
+    for row in rows:
+        ubigeo = normalize_ubigeo(row.get("ubigeo"))
+        departamento = text(row.get("departamento"))
+        provincia = text(row.get("provincia"))
+        distrito = text(row.get("distrito"))
+        if not ubigeo or not departamento or not provincia or not distrito:
+            continue
+        key = (departamento, provincia, distrito)
+        counts[ubigeo][key] += 1
+        year = parse_int(row.get("anio"))
+        if year is not None:
+            years[ubigeo][key].add(year)
+
+    catalog: dict[str, UbigeoTerritory] = {}
+    conflicts: dict[str, Counter[tuple[str, str, str]]] = {}
+    for ubigeo, options in counts.items():
+        ranked = sorted(
+            options,
+            key=lambda key: (
+                len(years[ubigeo][key]),
+                options[key],
+                max(years[ubigeo][key]) if years[ubigeo][key] else 0,
+                key,
+            ),
+            reverse=True,
+        )
+        selected = ranked[0]
+        if len(ranked) > 1:
+            conflicts[ubigeo] = options
+            second = ranked[1]
+            selected_score = (
+                len(years[ubigeo][selected]),
+                options[selected],
+                max(years[ubigeo][selected]) if years[ubigeo][selected] else 0,
+            )
+            second_score = (
+                len(years[ubigeo][second]),
+                options[second],
+                max(years[ubigeo][second]) if years[ubigeo][second] else 0,
+            )
+            if selected_score == second_score:
+                raise ValueError(
+                    "Conflicto territorial ONPE sin resolución determinística "
+                    f"para ubigeo={ubigeo}: {options}"
+                )
+
+        source_years = "|".join(str(year) for year in sorted(years[ubigeo][selected]))
+        catalog[ubigeo] = UbigeoTerritory(
+            departamento=selected[0],
+            provincia=selected[1],
+            distrito=selected[2],
+            fuente_anios=source_years,
+            n_observaciones=options[selected],
+        )
+    return catalog, conflicts
+
+
+def write_ubigeo_catalog(catalog: Mapping[str, UbigeoTerritory], output_path: Path) -> int:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=CATALOG_FIELDS)
+        writer.writeheader()
+        for ubigeo in sorted(catalog):
+            territory = catalog[ubigeo]
+            writer.writerow(
+                {
+                    "ubigeo": ubigeo,
+                    "departamento": territory.departamento,
+                    "provincia": territory.provincia,
+                    "distrito": territory.distrito,
+                    "fuente_anios": territory.fuente_anios,
+                    "n_observaciones": territory.n_observaciones,
+                }
+            )
+    return len(catalog)
+
+
+def iter_2026_rows(
+    path: Path,
+    catalog: Mapping[str, UbigeoTerritory] | None = None,
+    unresolved_ubigeos: set[str] | None = None,
+) -> Iterable[dict[str, object]]:
     if not path.exists():
         raise FileNotFoundError(f"No existe el CSV presidencial 2026: {path}")
     with path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
-            yield normalize_2026_row(row)
+            yield normalize_2026_row(row, catalog, unresolved_ubigeos)
 
 
 def write_rows(rows: Iterable[dict[str, object]], output_path: Path) -> int:
@@ -344,6 +481,11 @@ def main() -> int:
         help="Ruta del CSV consolidado de salida",
     )
     parser.add_argument(
+        "--catalog-out",
+        default=str(DEFAULT_CATALOG),
+        help="Ruta del catálogo territorial UBIGEO ONPE derivado de históricos",
+    )
+    parser.add_argument(
         "--skip-2026",
         action="store_true",
         help="No incluir el CSV presidencial 2026",
@@ -352,12 +494,25 @@ def main() -> int:
 
     input_dir = Path(args.input_dir)
     output_path = Path(args.out)
+    catalog_path = Path(args.catalog_out)
 
+    catalog, conflicts = build_ubigeo_catalog(iter_historical_rows(input_dir))
+    catalog_count = write_ubigeo_catalog(catalog, catalog_path)
     rows: Iterable[dict[str, object]] = iter_historical_rows(input_dir)
+    unresolved_ubigeos: set[str] = set()
     if not args.skip_2026:
-        rows = chain(rows, iter_2026_rows(Path(args.presidencial_2026)))
+        rows = chain(rows, iter_2026_rows(Path(args.presidencial_2026), catalog, unresolved_ubigeos))
 
     count = write_rows(rows, output_path)
+    print(f"Catálogo UBIGEO ONPE generado: {catalog_path} ({catalog_count} ubigeos)")
+    if conflicts:
+        print(f"Conflictos territoriales resueltos por regla ONPE documentada: {len(conflicts)}")
+    if unresolved_ubigeos:
+        unresolved_preview = ", ".join(sorted(unresolved_ubigeos)[:20])
+        print(
+            "UBIGEO 2026 sin correspondencia histórica ONPE: "
+            f"{len(unresolved_ubigeos)} ({unresolved_preview})"
+        )
     print(f"Filas consolidadas: {count}")
     print(f"Archivo generado: {output_path}")
     return 0

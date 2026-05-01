@@ -3,6 +3,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from build_ausentismo_presidencial import (
+    UNRESOLVED_TERRITORY,
+    build_ubigeo_catalog,
+    normalize_2026_row,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -13,6 +19,8 @@ def test_main_scripts_show_help():
         "refresh_presidencial_only_v2.py",
         "split_mesas_por_votacion.py",
         "analyze_ausentismo_presidencial.py",
+        "build_ausentismo_presidencial.py",
+        "validate_ubigeo_onpe_mapping.py",
     ):
         result = subprocess.run(
             [sys.executable, str(ROOT / script), "--help"],
@@ -106,3 +114,55 @@ def test_analyze_ausentismo_builds_baseline_and_flags():
         "senal_exploratoria_para_revision",
         "sin_flag",
     }
+
+
+def test_catalogo_ubigeo_onpe_resuelve_140130_para_2026():
+    catalog, _ = build_ubigeo_catalog(
+        [
+            {
+                "anio": 2016,
+                "ubigeo": "140130",
+                "departamento": "LIMA",
+                "provincia": "LIMA",
+                "distrito": "SANTIAGO DE SURCO",
+            }
+        ]
+    )
+
+    row = normalize_2026_row(
+        {
+            "codigoMesa": "050915",
+            "ubigeoNivel03": "140130",
+            "totalElectoresHabiles": "300",
+            "totalVotosEmitidos": "175",
+        },
+        catalog,
+    )
+
+    assert row["codigo_mesa"] == "050915"
+    assert row["ubigeo"] == "140130"
+    assert row["departamento"] == "LIMA"
+    assert row["provincia"] == "LIMA"
+    assert row["distrito"] == "SANTIAGO DE SURCO"
+
+
+def test_ubigeo_2026_sin_catalogo_no_usa_fallback_externo():
+    unresolved: set[str] = set()
+    row = normalize_2026_row({"codigoMesa": "1", "ubigeoNivel03": "999999"}, {}, unresolved)
+
+    assert unresolved == {"999999"}
+    assert row["departamento"] == UNRESOLVED_TERRITORY
+    assert row["provincia"] == UNRESOLVED_TERRITORY
+    assert row["distrito"] == UNRESOLVED_TERRITORY
+
+
+def test_outputs_versionados_validan_ubigeo_onpe():
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "validate_ubigeo_onpe_mapping.py")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Validación UBIGEO ONPE OK" in result.stdout

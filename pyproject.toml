@@ -25,6 +25,7 @@ onpe-split-votacion = "split_mesas_por_votacion:main"
 onpe-refresh-presidencial = "refresh_presidencial_only_v2:main"
 onpe-build-ausentismo = "build_ausentismo_presidencial:main"
 onpe-analyze-ausentismo = "analyze_ausentismo_presidencial:main"
+onpe-validate-ubigeo = "validate_ubigeo_onpe_mapping:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -38,6 +39,7 @@ only-include = [
     "project_metadata.py",
     "refresh_presidencial_only_v2.py",
     "split_mesas_por_votacion.py",
+    "validate_ubigeo_onpe_mapping.py",
 ]
 
 [tool.pytest.ini_options]
