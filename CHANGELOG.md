@@ -4,6 +4,12 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 El proyecto sigue versionado semántico para el código y las herramientas operativas. Los CSV publicados pueden actualizarse entre versiones mediante refresh, rebuild y split; para reproducibilidad, citar también el commit usado.
 
+## 0.3.4 - 2026-05-02
+
+- Agrega `Electores hábiles` al resumen presidencial por estado en README.
+- Agrega `Electores hábiles` al resumen por estado, ámbito y región en README.
+- Agrega `electores_habiles` al CSV territorial y `Electores hábiles` a la vista Markdown renderizada.
+
 ## 0.3.3 - 2026-05-02
 
 - Agrega al README un resumen automático por estado, ámbito y región para mesas `Para envío al JEE` y `Pendiente`, antes del enlace al detalle territorial.

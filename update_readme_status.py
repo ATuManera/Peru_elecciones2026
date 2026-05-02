@@ -60,7 +60,9 @@ class ReadmeStatus:
     total_mesas: int
     unique_mesas: int
     state_counts: Counter[str]
+    state_electors: Counter[str]
     pending_locations: Counter[tuple[str, str, str, str, str]]
+    pending_location_electors: Counter[tuple[str, str, str, str, str]]
     valid_votes_by_group: dict[str, int]
     non_valid_votes: int
     contabilizadas: int
@@ -122,6 +124,18 @@ def fmt_pct(numerator: int, denominator: int) -> str:
     if denominator <= 0:
         return "0.00%"
     return f"{(numerator / denominator) * 100:.2f}%"
+
+
+def parse_int(value: str | None) -> int:
+    if value is None:
+        return 0
+    value = value.strip()
+    if not value:
+        return 0
+    try:
+        return int(value)
+    except ValueError:
+        return 0
 
 
 def today_lima() -> str:
@@ -215,7 +229,9 @@ def read_presidential_status(
     rows = 0
     mesas: set[str] = set()
     state_counts: Counter[str] = Counter()
+    state_electors: Counter[str] = Counter()
     pending_locations: Counter[tuple[str, str, str, str, str]] = Counter()
+    pending_location_electors: Counter[tuple[str, str, str, str, str]] = Counter()
     valid_votes_by_group: dict[str, int] = defaultdict(int)
     non_valid_votes = 0
     contabilizadas = 0
@@ -234,10 +250,14 @@ def read_presidential_status(
 
             state = (row.get("descripcionEstadoActa") or row.get("estado_control") or "").strip()
             state_counts[state or "Sin estado"] += 1
+            electors = parse_int(row.get("totalElectoresHabiles"))
+            state_electors[state or "Sin estado"] += electors
 
             if state in PENDING_STATE_ORDER:
                 scope, region, province, district = territory_from_row(row, ubigeo_catalog)
-                pending_locations[(state, scope, region, province, district)] += 1
+                location_key = (state, scope, region, province, district)
+                pending_locations[location_key] += 1
+                pending_location_electors[location_key] += electors
 
             if state != "Contabilizada":
                 continue
@@ -262,7 +282,9 @@ def read_presidential_status(
         total_mesas=rows,
         unique_mesas=len(mesas),
         state_counts=state_counts,
+        state_electors=state_electors,
         pending_locations=pending_locations,
+        pending_location_electors=pending_location_electors,
         valid_votes_by_group=dict(valid_votes_by_group),
         non_valid_votes=non_valid_votes,
         contabilizadas=contabilizadas,
@@ -327,45 +349,59 @@ def missing_pending_scope_rows(
 
 
 def pending_territorial_rows(
-    pending_locations: Counter[tuple[str, str, str, str, str]]
-) -> list[tuple[str, str, str, str, str, int]]:
+    pending_locations: Counter[tuple[str, str, str, str, str]],
+    pending_location_electors: Counter[tuple[str, str, str, str, str]],
+) -> list[tuple[str, str, str, str, str, int, int]]:
     rows = [
-        (state, scope, region, province, district, count)
+        (
+            state,
+            scope,
+            region,
+            province,
+            district,
+            count,
+            pending_location_electors[(state, scope, region, province, district)],
+        )
         for (state, scope, region, province, district), count in ordered_pending_locations(
             pending_locations
         )
     ]
     rows.extend(
-        (state, scope, region, province, district, count)
+        (state, scope, region, province, district, count, 0)
         for (state, scope, region, province, district), count in missing_pending_scope_rows(
             pending_locations
         )
     )
     if not rows:
-        return [("Sin mesas", "-", "-", "-", "-", 0)]
+        return [("Sin mesas", "-", "-", "-", "-", 0, 0)]
     return rows
 
 
 def pending_region_summary_rows(
-    pending_locations: Counter[tuple[str, str, str, str, str]]
-) -> list[tuple[str, str, str, int]]:
+    pending_locations: Counter[tuple[str, str, str, str, str]],
+    pending_location_electors: Counter[tuple[str, str, str, str, str]],
+) -> list[tuple[str, str, str, int, int]]:
     summary: Counter[tuple[str, str, str]] = Counter()
-    for (state, scope, region, _, _), count in pending_locations.items():
+    summary_electors: Counter[tuple[str, str, str]] = Counter()
+    for location_key, count in pending_locations.items():
+        state, scope, region, _, _ = location_key
         summary[(state, scope, region)] += count
+        summary_electors[(state, scope, region)] += pending_location_electors[location_key]
 
     present = {(state, scope) for state, scope, _ in summary}
     for state in PENDING_STATE_ORDER:
         for scope in ("PERU", "EXTRANJERO"):
             if (state, scope) not in present:
                 summary[(state, scope, "-")] = 0
+                summary_electors[(state, scope, "-")] = 0
 
     if not summary:
-        return [("Sin mesas", "-", "-", 0)]
+        return [("Sin mesas", "-", "-", 0, 0)]
 
     state_rank = {state: index for index, state in enumerate(PENDING_STATE_ORDER)}
     scope_rank = {"PERU": 0, "EXTRANJERO": 1}
     return [
-        (state, scope, region, count)
+        (state, scope, region, count, summary_electors[(state, scope, region)])
         for (state, scope, region), count in sorted(
             summary.items(),
             key=lambda item: (
@@ -390,12 +426,14 @@ def write_pending_territorial_csv(status: ReadmeStatus, output_path: Path) -> No
                 "provincia",
                 "distrito",
                 "mesas",
+                "electores_habiles",
                 "pct_universo",
             ],
         )
         writer.writeheader()
-        for state, scope, region, province, district, count in pending_territorial_rows(
-            status.pending_locations
+        for state, scope, region, province, district, count, electors in pending_territorial_rows(
+            status.pending_locations,
+            status.pending_location_electors,
         ):
             writer.writerow(
                 {
@@ -405,6 +443,7 @@ def write_pending_territorial_csv(status: ReadmeStatus, output_path: Path) -> No
                     "provincia": province,
                     "distrito": district,
                     "mesas": count,
+                    "electores_habiles": electors,
                     "pct_universo": fmt_pct(count, status.total_mesas),
                 }
             )
@@ -416,7 +455,7 @@ def markdown_cell(value: str | int) -> str:
 
 def write_pending_territorial_markdown(status: ReadmeStatus, output_path: Path, csv_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    rows = pending_territorial_rows(status.pending_locations)
+    rows = pending_territorial_rows(status.pending_locations, status.pending_location_electors)
     lines = [
         "# Desagregado territorial de mesas presidenciales para envío al JEE o pendientes",
         "",
@@ -427,10 +466,10 @@ def write_pending_territorial_markdown(status: ReadmeStatus, output_path: Path, 
         "",
         f"CSV descargable: [{csv_path.as_posix()}]({csv_path.as_posix()}).",
         "",
-        "| Estado | Ámbito | Región | Provincia | Distrito | Mesas | % del universo |",
-        "|---|---|---|---|---|---:|---:|",
+        "| Estado | Ámbito | Región | Provincia | Distrito | Mesas | Electores hábiles | % del universo |",
+        "|---|---|---|---|---|---:|---:|---:|",
     ]
-    for state, scope, region, province, district, count in rows:
+    for state, scope, region, province, district, count, electors in rows:
         lines.append(
             "| "
             f"{markdown_cell(STATE_LABELS.get(state, state))} | "
@@ -438,7 +477,7 @@ def write_pending_territorial_markdown(status: ReadmeStatus, output_path: Path, 
             f"{markdown_cell(region)} | "
             f"{markdown_cell(province)} | "
             f"{markdown_cell(district)} | "
-            f"{fmt_int(count)} | {fmt_pct(count, status.total_mesas)} |"
+            f"{fmt_int(count)} | {fmt_int(electors)} | {fmt_pct(count, status.total_mesas)} |"
         )
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -483,13 +522,16 @@ def build_section(
         "",
         "Resumen de mesas presidenciales por estado:",
         "",
-        "| Estado | Mesas | % del universo |",
-        "|---|---:|---:|",
+        "| Estado | Mesas | Electores hábiles | % del universo |",
+        "|---|---:|---:|---:|",
     ]
 
     for state, count in ordered_state_items(status.state_counts):
         label = STATE_LABELS.get(state, state)
-        lines.append(f"| {label} | {fmt_int(count)} | {fmt_pct(count, status.total_mesas)} |")
+        lines.append(
+            f"| {label} | {fmt_int(count)} | {fmt_int(status.state_electors[state])} | "
+            f"{fmt_pct(count, status.total_mesas)} |"
+        )
 
     lines.extend(
         [
@@ -498,16 +540,19 @@ def build_section(
             "",
             "Resumen por ámbito y región:",
             "",
-            "| Estado | Ámbito | Región | Mesas | % del universo |",
-            "|---|---|---|---:|---:|",
+            "| Estado | Ámbito | Región | Mesas | Electores hábiles | % del universo |",
+            "|---|---|---|---:|---:|---:|",
         ]
     )
 
-    for state, scope, region, count in pending_region_summary_rows(status.pending_locations):
+    for state, scope, region, count, electors in pending_region_summary_rows(
+        status.pending_locations,
+        status.pending_location_electors,
+    ):
         lines.append(
             "| "
             f"{STATE_LABELS.get(state, state)} | {scope} | {region} | "
-            f"{fmt_int(count)} | {fmt_pct(count, status.total_mesas)} |"
+            f"{fmt_int(count)} | {fmt_int(electors)} | {fmt_pct(count, status.total_mesas)} |"
         )
 
     lines.extend(

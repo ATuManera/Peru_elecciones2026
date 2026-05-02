@@ -178,6 +178,7 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         "ubigeoNivel01",
         "ubigeoNivel02",
         "ubigeoNivel03",
+        "totalElectoresHabiles",
         "detalle_1_descripcion",
         "detalle_1_nvotos",
         "detalle_2_descripcion",
@@ -192,6 +193,7 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
             "ubigeoNivel01": "14",
             "ubigeoNivel02": "1401",
             "ubigeoNivel03": "140130",
+            "totalElectoresHabiles": "300",
             "detalle_1_descripcion": "FUERZA POPULAR",
             "detalle_1_nvotos": "17",
             "detalle_2_descripcion": "JUNTOS POR EL PERÚ",
@@ -205,6 +207,7 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
             "ubigeoNivel01": "14",
             "ubigeoNivel02": "1401",
             "ubigeoNivel03": "140130",
+            "totalElectoresHabiles": "290",
             "detalle_1_descripcion": "FUERZA POPULAR",
             "detalle_1_nvotos": "1",
             "detalle_2_descripcion": "RENOVACIÓN POPULAR",
@@ -218,6 +221,7 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
             "ubigeoNivel01": "92",
             "ubigeoNivel02": "9202",
             "ubigeoNivel03": "920202",
+            "totalElectoresHabiles": "250",
             "detalle_1_descripcion": "FUERZA POPULAR",
             "detalle_1_nvotos": "999",
             "detalle_2_descripcion": "RENOVACIÓN POPULAR",
@@ -271,18 +275,18 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
     pending_rows = list(csv.DictReader(pending_output.open(encoding="utf-8-sig", newline="")))
     pending_markdown_text = pending_markdown.read_text(encoding="utf-8")
 
-    assert "| Contabilizadas | 2 | 66.67% |" in updated
-    assert "| Para envío al JEE | 1 | 33.33% |" in updated
+    assert "| Contabilizadas | 2 | 590 | 66.67% |" in updated
+    assert "| Para envío al JEE | 1 | 250 | 33.33% |" in updated
     assert pending_output.read_bytes().startswith(b"\xef\xbb\xbf")
     assert f"[{pending_output.as_posix()}]({pending_output.as_posix()})" in updated
     assert f"[{pending_markdown.as_posix()}]({pending_markdown.as_posix()})" in updated
-    assert "| Estado | Ámbito | Región | Mesas | % del universo |" in updated
-    assert "| Para envío al JEE | EXTRANJERO | AMERICA | 1 | 33.33% |" in updated
-    assert "| Pendientes | PERU | - | 0 | 0.00% |" in updated
+    assert "| Estado | Ámbito | Región | Mesas | Electores hábiles | % del universo |" in updated
+    assert "| Para envío al JEE | EXTRANJERO | AMERICA | 1 | 250 | 33.33% |" in updated
+    assert "| Pendientes | PERU | - | 0 | 0 | 0.00% |" in updated
     assert "| Para envío al JEE | EXTRANJERO | AMERICA | ARGENTINA | BUENOS AIRES |" not in updated
     assert (
         "| Para envío al JEE | EXTRANJERO | AMERICA | ARGENTINA | BUENOS AIRES | "
-        "1 | 33.33% |"
+        "1 | 250 | 33.33% |"
     ) in pending_markdown_text
     assert {
         "estado": "Para envío al JEE",
@@ -291,6 +295,7 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         "provincia": "ARGENTINA",
         "distrito": "BUENOS AIRES",
         "mesas": "1",
+        "electores_habiles": "250",
         "pct_universo": "33.33%",
     } in pending_rows
     assert {
@@ -300,6 +305,7 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         "provincia": "-",
         "distrito": "-",
         "mesas": "0",
+        "electores_habiles": "0",
         "pct_universo": "0.00%",
     } in pending_rows
     assert "| FUERZA POPULAR | 18 | 45.00% |" in updated

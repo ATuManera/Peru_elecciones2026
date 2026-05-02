@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
-[![Version](https://img.shields.io/badge/version-0.3.3-green.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.3.4-green.svg)](pyproject.toml)
 
 Herramientas operativas para descargar actas desde la API pública de ONPE, reconstruir un CSV consolidado y separar los resultados por tipo de elección.
 
@@ -31,7 +31,7 @@ Ver `LICENSE` para los términos completos y `NOTICE` para la atribución del pr
 
 ## Versionado
 
-El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.3.3**.
+El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.3.4**.
 
 - `0.1.0`: flujo base para descargar, reconstruir y separar resultados ONPE 2026.
 - `0.2.0`: incorpora insumos históricos oficiales de ONPE, el script `build_ausentismo_presidencial.py` y el CSV consolidado de ausentismo presidencial 2006-2026.
@@ -39,59 +39,60 @@ El proyecto usa versionado semántico para el código y las herramientas operati
 - `0.3.1`: agrega `update_readme_status.py`, el comando `onpe-update-readme-status`, el snapshot de datos en README y el CSV territorial de mesas presidenciales `Para envío al JEE` o `Pendiente`.
 - `0.3.2`: agrega una vista Markdown renderizada para el desagregado territorial y emite el CSV territorial con BOM UTF-8 para mejorar compatibilidad de visualización.
 - `0.3.3`: agrega al README un resumen automático por estado, ámbito y región para ubicar de un vistazo las mesas `Para envío al JEE` o `Pendiente`.
+- `0.3.4`: agrega `Electores hábiles` a los resúmenes de estado, región y detalle territorial para estimar el techo potencial de votos no contabilizados.
 
 Los datos publicados tienen un ciclo de actualización distinto al del código: pueden cambiar con cada refresh incremental, rebuild y split. Para reproducibilidad, se recomienda citar la ruta del archivo, la fecha de descarga o actualización y el commit de GitHub usado como referencia.
 
 ## Estado de Actualización de Datos
 
-Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.49%**.
+Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.56%**.
 
-Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **2 de mayo de 2026 14:00:43 PET**. Commit local de base: `42e95d3`.
+Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **2 de mayo de 2026 18:54:57 PET**. Commit local de base: `012c877`.
 
 Resumen de mesas presidenciales por estado:
 
-| Estado | Mesas | % del universo |
-|---|---:|---:|
-| Contabilizadas | 90,441 | 97.49% |
-| Para envío al JEE | 2,325 | 2.51% |
-| Pendientes | 0 | 0.00% |
+| Estado | Mesas | Electores hábiles | % del universo |
+|---|---:|---:|---:|
+| Contabilizadas | 90,500 | 26,631,075 | 97.56% |
+| Para envío al JEE | 2,266 | 694,357 | 2.44% |
+| Pendientes | 0 | 0 | 0.00% |
 
 Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:
 
 Resumen por ámbito y región:
 
-| Estado | Ámbito | Región | Mesas | % del universo |
-|---|---|---|---:|---:|
-| Para envío al JEE | PERU | LIMA | 797 | 0.86% |
-| Para envío al JEE | PERU | LORETO | 251 | 0.27% |
-| Para envío al JEE | PERU | PIURA | 163 | 0.18% |
-| Para envío al JEE | PERU | CUSCO | 118 | 0.13% |
-| Para envío al JEE | PERU | UCAYALI | 106 | 0.11% |
-| Para envío al JEE | PERU | ICA | 98 | 0.11% |
-| Para envío al JEE | PERU | SAN MARTIN | 96 | 0.10% |
-| Para envío al JEE | PERU | HUANUCO | 84 | 0.09% |
-| Para envío al JEE | PERU | ANCASH | 69 | 0.07% |
-| Para envío al JEE | PERU | CALLAO | 64 | 0.07% |
-| Para envío al JEE | PERU | CAJAMARCA | 55 | 0.06% |
-| Para envío al JEE | PERU | LA LIBERTAD | 49 | 0.05% |
-| Para envío al JEE | PERU | HUANCAVELICA | 48 | 0.05% |
-| Para envío al JEE | PERU | PUNO | 26 | 0.03% |
-| Para envío al JEE | PERU | AMAZONAS | 23 | 0.02% |
-| Para envío al JEE | PERU | APURIMAC | 22 | 0.02% |
-| Para envío al JEE | PERU | AREQUIPA | 16 | 0.02% |
-| Para envío al JEE | PERU | JUNIN | 16 | 0.02% |
-| Para envío al JEE | PERU | MADRE DE DIOS | 14 | 0.02% |
-| Para envío al JEE | PERU | AYACUCHO | 13 | 0.01% |
-| Para envío al JEE | PERU | PASCO | 9 | 0.01% |
-| Para envío al JEE | PERU | MOQUEGUA | 5 | 0.01% |
-| Para envío al JEE | PERU | LAMBAYEQUE | 2 | 0.00% |
-| Para envío al JEE | PERU | TACNA | 1 | 0.00% |
-| Para envío al JEE | EXTRANJERO | AMERICA | 129 | 0.14% |
-| Para envío al JEE | EXTRANJERO | EUROPA | 43 | 0.05% |
-| Para envío al JEE | EXTRANJERO | ASIA | 4 | 0.00% |
-| Para envío al JEE | EXTRANJERO | OCEANIA | 4 | 0.00% |
-| Pendientes | PERU | - | 0 | 0.00% |
-| Pendientes | EXTRANJERO | - | 0 | 0.00% |
+| Estado | Ámbito | Región | Mesas | Electores hábiles | % del universo |
+|---|---|---|---:|---:|---:|
+| Para envío al JEE | PERU | LIMA | 787 | 232,845 | 0.85% |
+| Para envío al JEE | PERU | LORETO | 251 | 72,784 | 0.27% |
+| Para envío al JEE | PERU | PIURA | 163 | 47,295 | 0.18% |
+| Para envío al JEE | PERU | CUSCO | 118 | 33,858 | 0.13% |
+| Para envío al JEE | PERU | SAN MARTIN | 93 | 26,797 | 0.10% |
+| Para envío al JEE | PERU | ICA | 92 | 26,895 | 0.10% |
+| Para envío al JEE | PERU | HUANUCO | 84 | 24,295 | 0.09% |
+| Para envío al JEE | PERU | ANCASH | 69 | 19,489 | 0.07% |
+| Para envío al JEE | PERU | UCAYALI | 66 | 18,983 | 0.07% |
+| Para envío al JEE | PERU | CALLAO | 64 | 18,881 | 0.07% |
+| Para envío al JEE | PERU | CAJAMARCA | 55 | 15,775 | 0.06% |
+| Para envío al JEE | PERU | LA LIBERTAD | 49 | 14,047 | 0.05% |
+| Para envío al JEE | PERU | HUANCAVELICA | 48 | 13,051 | 0.05% |
+| Para envío al JEE | PERU | PUNO | 26 | 7,550 | 0.03% |
+| Para envío al JEE | PERU | AMAZONAS | 23 | 6,239 | 0.02% |
+| Para envío al JEE | PERU | APURIMAC | 22 | 5,974 | 0.02% |
+| Para envío al JEE | PERU | AREQUIPA | 16 | 4,625 | 0.02% |
+| Para envío al JEE | PERU | JUNIN | 16 | 4,706 | 0.02% |
+| Para envío al JEE | PERU | MADRE DE DIOS | 14 | 4,144 | 0.02% |
+| Para envío al JEE | PERU | AYACUCHO | 13 | 3,638 | 0.01% |
+| Para envío al JEE | PERU | PASCO | 9 | 2,551 | 0.01% |
+| Para envío al JEE | PERU | MOQUEGUA | 5 | 1,473 | 0.01% |
+| Para envío al JEE | PERU | LAMBAYEQUE | 2 | 528 | 0.00% |
+| Para envío al JEE | PERU | TACNA | 1 | 293 | 0.00% |
+| Para envío al JEE | EXTRANJERO | AMERICA | 129 | 62,967 | 0.14% |
+| Para envío al JEE | EXTRANJERO | EUROPA | 43 | 20,922 | 0.05% |
+| Para envío al JEE | EXTRANJERO | ASIA | 4 | 1,884 | 0.00% |
+| Para envío al JEE | EXTRANJERO | OCEANIA | 4 | 1,868 | 0.00% |
+| Pendientes | PERU | - | 0 | 0 | 0.00% |
+| Pendientes | EXTRANJERO | - | 0 | 0 | 0.00% |
 
 Ver vista renderizada: [data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md). CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv).
 
@@ -99,14 +100,14 @@ Votos válidos por organización política en mesas contabilizadas:
 
 | Grupo | Votos válidos | % votos válidos |
 |---|---:|---:|
-| FUERZA POPULAR | 2,802,488 | 17.12% |
-| JUNTOS POR EL PERÚ | 1,972,140 | 12.05% |
-| RENOVACIÓN POPULAR | 1,944,558 | 11.88% |
-| PARTIDO DEL BUEN GOBIERNO | 1,799,033 | 10.99% |
-| PARTIDO CÍVICO OBRAS | 1,662,687 | 10.16% |
-| Otros candidatos | 6,188,245 | 37.80% |
+| FUERZA POPULAR | 2,804,911 | 17.13% |
+| JUNTOS POR EL PERÚ | 1,973,201 | 12.05% |
+| RENOVACIÓN POPULAR | 1,945,505 | 11.88% |
+| PARTIDO DEL BUEN GOBIERNO | 1,799,779 | 10.99% |
+| PARTIDO CÍVICO OBRAS | 1,663,544 | 10.16% |
+| Otros candidatos | 6,191,719 | 37.80% |
 
-Blancos, nulos e impugnados suman **3,309,094** votos y no forman parte del denominador de votos válidos ONPE.
+Blancos, nulos e impugnados suman **3,311,764** votos y no forman parte del denominador de votos válidos ONPE.
 
 ## Alcance Actual
 

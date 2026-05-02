@@ -92,9 +92,9 @@ Este paso actualiza automáticamente:
 
 - avance de mesas contabilizadas;
 - snapshot de datos con CSV fuente, fecha/hora de modificación del CSV y commit local de base;
-- resumen por estado;
-- resumen territorial en README por estado, ámbito y región para `Para envío al JEE` y `Pendiente`;
-- CSV UTF-8 con BOM y vista Markdown renderizada con desagregado territorial por `PERU` / `EXTRANJERO`, región, provincia y distrito para `Para envío al JEE` y `Pendiente`;
+- resumen por estado con mesas y electores hábiles;
+- resumen territorial en README por estado, ámbito y región para `Para envío al JEE` y `Pendiente`, con mesas y electores hábiles;
+- CSV UTF-8 con BOM y vista Markdown renderizada con desagregado territorial por `PERU` / `EXTRANJERO`, región, provincia y distrito para `Para envío al JEE` y `Pendiente`, con electores hábiles;
 - cuadro de votos válidos con los primeros 5 grupos y `Otros candidatos`;
 - nota de blancos, nulos e impugnados excluidos del denominador ONPE de votos válidos.
 
