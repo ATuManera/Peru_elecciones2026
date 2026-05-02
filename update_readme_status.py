@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import sqlite3
+import subprocess
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime
@@ -100,6 +101,26 @@ def today_lima() -> str:
     return f"{now.day} de {MONTHS_ES[now.month]} de {now.year}"
 
 
+def format_datetime_lima(timestamp: float) -> str:
+    moment = datetime.fromtimestamp(timestamp, ZoneInfo("America/Lima"))
+    return (
+        f"{moment.day} de {MONTHS_ES[moment.month]} de {moment.year} "
+        f"{moment:%H:%M:%S} PET"
+    )
+
+
+def current_git_commit() -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "--short", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
 def vote_detail_indices(fieldnames: list[str]) -> list[str]:
     indices = []
     for field in fieldnames:
@@ -193,10 +214,25 @@ def ordered_state_items(state_counts: Counter[str]) -> list[tuple[str, int]]:
     return items
 
 
-def build_section(status: ReadmeStatus, sqlite_counts: Counter[str] | None, top_n: int) -> str:
-    source = "`data/output/por_votacion/mesas_presidencial.csv`"
+def build_section(
+    status: ReadmeStatus,
+    sqlite_counts: Counter[str] | None,
+    top_n: int,
+    csv_path: Path = DEFAULT_PRESIDENCIAL_CSV,
+) -> str:
+    csv_label = csv_path.as_posix()
+    source = f"`{csv_label}`"
     if sqlite_counts and sum(sqlite_counts.values()) == status.total_mesas:
         source += " y el control SQLite local"
+
+    snapshot = (
+        "Snapshot de datos: generado automáticamente por `update_readme_status.py` "
+        f"desde `{csv_label}`; CSV modificado el "
+        f"**{format_datetime_lima(csv_path.stat().st_mtime)}**."
+    )
+    git_commit = current_git_commit()
+    if git_commit:
+        snapshot += f" Commit local de base: `{git_commit}`."
 
     top_groups = sorted(status.valid_votes_by_group.items(), key=lambda item: item[1], reverse=True)[:top_n]
     top_votes = sum(votes for _, votes in top_groups)
@@ -211,6 +247,8 @@ def build_section(status: ReadmeStatus, sqlite_counts: Counter[str] | None, top_
             f"**{today_lima()}**, el avance de mesas contabilizadas es "
             f"**{fmt_pct(status.contabilizadas, status.total_mesas)}**."
         ),
+        "",
+        snapshot,
         "",
         "Resumen de mesas presidenciales por estado:",
         "",
@@ -267,7 +305,7 @@ def main() -> None:
     args = parse_args()
     status = read_presidential_status(args.presidencial_csv)
     sqlite_counts = sqlite_state_counts(args.sqlite)
-    section = build_section(status, sqlite_counts, args.top)
+    section = build_section(status, sqlite_counts, args.top, args.presidencial_csv)
 
     if args.dry_run:
         print(section)

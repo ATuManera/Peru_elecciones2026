@@ -211,7 +211,7 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         writer.writerows(rows)
 
     status = read_presidential_status(csv_path)
-    section = build_section(status, sqlite_counts=None, top_n=2)
+    section = build_section(status, sqlite_counts=None, top_n=2, csv_path=csv_path)
     updated = replace_readme_section(readme, section)
 
     assert "| Contabilizadas | 2 | 66.67% |" in updated
@@ -219,5 +219,7 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
     assert "| FUERZA POPULAR | 18 | 45.00% |" in updated
     assert "| JUNTOS POR EL PERÚ | 12 | 30.00% |" in updated
     assert "| Otros candidatos | 10 | 25.00% |" in updated
+    assert "Snapshot de datos: generado automáticamente por `update_readme_status.py`" in updated
+    assert f"desde `{csv_path.as_posix()}`" in updated
     assert "Blancos, nulos e impugnados suman **5** votos" in updated
     assert "## Alcance Actual" in updated

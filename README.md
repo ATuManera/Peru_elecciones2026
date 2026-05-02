@@ -43,6 +43,8 @@ Los datos publicados tienen un ciclo de actualización distinto al del código: 
 
 Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.49%**.
 
+Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **2 de mayo de 2026 14:00:43 PET**. Commit local de base: `7976431`.
+
 Resumen de mesas presidenciales por estado:
 
 | Estado | Mesas | % del universo |

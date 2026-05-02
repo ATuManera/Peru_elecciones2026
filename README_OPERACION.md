@@ -91,9 +91,14 @@ python3 update_readme_status.py
 Este paso actualiza automáticamente:
 
 - avance de mesas contabilizadas;
+- snapshot de datos con CSV fuente, fecha/hora de modificación del CSV y commit local de base;
 - resumen por estado;
 - cuadro de votos válidos con los primeros 5 grupos y `Otros candidatos`;
 - nota de blancos, nulos e impugnados excluidos del denominador ONPE de votos válidos.
+
+La versión del proyecto no cambia por refresh de datos. La evidencia del refresh queda en
+`README.md`, sección `Estado de Actualización de Datos`, y en el commit que incluya los CSV
+y el README regenerado.
 
 ### 6. Reconstruir consolidado de ausentismo
 
