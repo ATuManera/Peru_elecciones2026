@@ -276,6 +276,9 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
     assert pending_output.read_bytes().startswith(b"\xef\xbb\xbf")
     assert f"[{pending_output.as_posix()}]({pending_output.as_posix()})" in updated
     assert f"[{pending_markdown.as_posix()}]({pending_markdown.as_posix()})" in updated
+    assert "| Estado | Ámbito | Región | Mesas | % del universo |" in updated
+    assert "| Para envío al JEE | EXTRANJERO | AMERICA | 1 | 33.33% |" in updated
+    assert "| Pendientes | PERU | - | 0 | 0.00% |" in updated
     assert "| Para envío al JEE | EXTRANJERO | AMERICA | ARGENTINA | BUENOS AIRES |" not in updated
     assert (
         "| Para envío al JEE | EXTRANJERO | AMERICA | ARGENTINA | BUENOS AIRES | "

@@ -4,6 +4,10 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 El proyecto sigue versionado semántico para el código y las herramientas operativas. Los CSV publicados pueden actualizarse entre versiones mediante refresh, rebuild y split; para reproducibilidad, citar también el commit usado.
 
+## 0.3.3 - 2026-05-02
+
+- Agrega al README un resumen automático por estado, ámbito y región para mesas `Para envío al JEE` y `Pendiente`, antes del enlace al detalle territorial.
+
 ## 0.3.2 - 2026-05-02
 
 - Genera `data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md` como vista renderizada en GitHub del desagregado territorial.

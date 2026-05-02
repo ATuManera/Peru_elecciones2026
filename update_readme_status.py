@@ -346,6 +346,38 @@ def pending_territorial_rows(
     return rows
 
 
+def pending_region_summary_rows(
+    pending_locations: Counter[tuple[str, str, str, str, str]]
+) -> list[tuple[str, str, str, int]]:
+    summary: Counter[tuple[str, str, str]] = Counter()
+    for (state, scope, region, _, _), count in pending_locations.items():
+        summary[(state, scope, region)] += count
+
+    present = {(state, scope) for state, scope, _ in summary}
+    for state in PENDING_STATE_ORDER:
+        for scope in ("PERU", "EXTRANJERO"):
+            if (state, scope) not in present:
+                summary[(state, scope, "-")] = 0
+
+    if not summary:
+        return [("Sin mesas", "-", "-", 0)]
+
+    state_rank = {state: index for index, state in enumerate(PENDING_STATE_ORDER)}
+    scope_rank = {"PERU": 0, "EXTRANJERO": 1}
+    return [
+        (state, scope, region, count)
+        for (state, scope, region), count in sorted(
+            summary.items(),
+            key=lambda item: (
+                state_rank.get(item[0][0], 99),
+                scope_rank.get(item[0][1], 99),
+                -item[1],
+                item[0][2],
+            ),
+        )
+    ]
+
+
 def write_pending_territorial_csv(status: ReadmeStatus, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8-sig", newline="") as f:
@@ -463,6 +495,23 @@ def build_section(
         [
             "",
             "Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:",
+            "",
+            "Resumen por ámbito y región:",
+            "",
+            "| Estado | Ámbito | Región | Mesas | % del universo |",
+            "|---|---|---|---:|---:|",
+        ]
+    )
+
+    for state, scope, region, count in pending_region_summary_rows(status.pending_locations):
+        lines.append(
+            "| "
+            f"{STATE_LABELS.get(state, state)} | {scope} | {region} | "
+            f"{fmt_int(count)} | {fmt_pct(count, status.total_mesas)} |"
+        )
+
+    lines.extend(
+        [
             "",
             (
                 "Ver vista renderizada: "

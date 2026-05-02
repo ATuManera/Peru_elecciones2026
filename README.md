@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
-[![Version](https://img.shields.io/badge/version-0.3.2-green.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.3.3-green.svg)](pyproject.toml)
 
 Herramientas operativas para descargar actas desde la API pública de ONPE, reconstruir un CSV consolidado y separar los resultados por tipo de elección.
 
@@ -31,13 +31,14 @@ Ver `LICENSE` para los términos completos y `NOTICE` para la atribución del pr
 
 ## Versionado
 
-El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.3.2**.
+El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.3.3**.
 
 - `0.1.0`: flujo base para descargar, reconstruir y separar resultados ONPE 2026.
 - `0.2.0`: incorpora insumos históricos oficiales de ONPE, el script `build_ausentismo_presidencial.py` y el CSV consolidado de ausentismo presidencial 2006-2026.
 - `0.3.0`: agrega `consultar_padron_mesas.py`, el comando `onpe-consultar-padron-mesas` y corrige el rebuild de `mesas_consolidado.csv` para incluir todo JSON descargado válido, evitando excluir mesas cuyo estado agregado quedó desfasado.
 - `0.3.1`: agrega `update_readme_status.py`, el comando `onpe-update-readme-status`, el snapshot de datos en README y el CSV territorial de mesas presidenciales `Para envío al JEE` o `Pendiente`.
 - `0.3.2`: agrega una vista Markdown renderizada para el desagregado territorial y emite el CSV territorial con BOM UTF-8 para mejorar compatibilidad de visualización.
+- `0.3.3`: agrega al README un resumen automático por estado, ámbito y región para ubicar de un vistazo las mesas `Para envío al JEE` o `Pendiente`.
 
 Los datos publicados tienen un ciclo de actualización distinto al del código: pueden cambiar con cada refresh incremental, rebuild y split. Para reproducibilidad, se recomienda citar la ruta del archivo, la fecha de descarga o actualización y el commit de GitHub usado como referencia.
 
@@ -45,7 +46,7 @@ Los datos publicados tienen un ciclo de actualización distinto al del código: 
 
 Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.49%**.
 
-Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **2 de mayo de 2026 14:00:43 PET**. Commit local de base: `ce46f20`.
+Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **2 de mayo de 2026 14:00:43 PET**. Commit local de base: `42e95d3`.
 
 Resumen de mesas presidenciales por estado:
 
@@ -56,6 +57,41 @@ Resumen de mesas presidenciales por estado:
 | Pendientes | 0 | 0.00% |
 
 Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:
+
+Resumen por ámbito y región:
+
+| Estado | Ámbito | Región | Mesas | % del universo |
+|---|---|---|---:|---:|
+| Para envío al JEE | PERU | LIMA | 797 | 0.86% |
+| Para envío al JEE | PERU | LORETO | 251 | 0.27% |
+| Para envío al JEE | PERU | PIURA | 163 | 0.18% |
+| Para envío al JEE | PERU | CUSCO | 118 | 0.13% |
+| Para envío al JEE | PERU | UCAYALI | 106 | 0.11% |
+| Para envío al JEE | PERU | ICA | 98 | 0.11% |
+| Para envío al JEE | PERU | SAN MARTIN | 96 | 0.10% |
+| Para envío al JEE | PERU | HUANUCO | 84 | 0.09% |
+| Para envío al JEE | PERU | ANCASH | 69 | 0.07% |
+| Para envío al JEE | PERU | CALLAO | 64 | 0.07% |
+| Para envío al JEE | PERU | CAJAMARCA | 55 | 0.06% |
+| Para envío al JEE | PERU | LA LIBERTAD | 49 | 0.05% |
+| Para envío al JEE | PERU | HUANCAVELICA | 48 | 0.05% |
+| Para envío al JEE | PERU | PUNO | 26 | 0.03% |
+| Para envío al JEE | PERU | AMAZONAS | 23 | 0.02% |
+| Para envío al JEE | PERU | APURIMAC | 22 | 0.02% |
+| Para envío al JEE | PERU | AREQUIPA | 16 | 0.02% |
+| Para envío al JEE | PERU | JUNIN | 16 | 0.02% |
+| Para envío al JEE | PERU | MADRE DE DIOS | 14 | 0.02% |
+| Para envío al JEE | PERU | AYACUCHO | 13 | 0.01% |
+| Para envío al JEE | PERU | PASCO | 9 | 0.01% |
+| Para envío al JEE | PERU | MOQUEGUA | 5 | 0.01% |
+| Para envío al JEE | PERU | LAMBAYEQUE | 2 | 0.00% |
+| Para envío al JEE | PERU | TACNA | 1 | 0.00% |
+| Para envío al JEE | EXTRANJERO | AMERICA | 129 | 0.14% |
+| Para envío al JEE | EXTRANJERO | EUROPA | 43 | 0.05% |
+| Para envío al JEE | EXTRANJERO | ASIA | 4 | 0.00% |
+| Para envío al JEE | EXTRANJERO | OCEANIA | 4 | 0.00% |
+| Pendientes | PERU | - | 0 | 0.00% |
+| Pendientes | EXTRANJERO | - | 0 | 0.00% |
 
 Ver vista renderizada: [data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md). CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv).
 
