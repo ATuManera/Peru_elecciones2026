@@ -145,9 +145,15 @@ def test_consultar_padron_mesas_loads_unique_valid_dnis(tmp_path):
 
 
 def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
-    from update_readme_status import build_section, read_presidential_status, replace_readme_section
+    from update_readme_status import (
+        build_section,
+        load_ubigeo_catalog,
+        read_presidential_status,
+        replace_readme_section,
+    )
 
     csv_path = tmp_path / "mesas_presidencial.csv"
+    catalog_path = tmp_path / "ubigeo_onpe_catalog.csv"
     readme = "\n".join(
         [
             "# Proyecto",
@@ -165,6 +171,9 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
     fieldnames = [
         "codigoMesa",
         "descripcionEstadoActa",
+        "ubigeoNivel01",
+        "ubigeoNivel02",
+        "ubigeoNivel03",
         "detalle_1_descripcion",
         "detalle_1_nvotos",
         "detalle_2_descripcion",
@@ -176,6 +185,9 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         {
             "codigoMesa": "000001",
             "descripcionEstadoActa": "Contabilizada",
+            "ubigeoNivel01": "14",
+            "ubigeoNivel02": "1401",
+            "ubigeoNivel03": "140130",
             "detalle_1_descripcion": "FUERZA POPULAR",
             "detalle_1_nvotos": "17",
             "detalle_2_descripcion": "JUNTOS POR EL PERÚ",
@@ -186,6 +198,9 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         {
             "codigoMesa": "000002",
             "descripcionEstadoActa": "Contabilizada",
+            "ubigeoNivel01": "14",
+            "ubigeoNivel02": "1401",
+            "ubigeoNivel03": "140130",
             "detalle_1_descripcion": "FUERZA POPULAR",
             "detalle_1_nvotos": "1",
             "detalle_2_descripcion": "RENOVACIÓN POPULAR",
@@ -196,6 +211,9 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         {
             "codigoMesa": "000003",
             "descripcionEstadoActa": "Para envío al JEE",
+            "ubigeoNivel01": "92",
+            "ubigeoNivel02": "9202",
+            "ubigeoNivel03": "920202",
             "detalle_1_descripcion": "FUERZA POPULAR",
             "detalle_1_nvotos": "999",
             "detalle_2_descripcion": "RENOVACIÓN POPULAR",
@@ -210,12 +228,41 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         writer.writeheader()
         writer.writerows(rows)
 
-    status = read_presidential_status(csv_path)
+    with catalog_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "ubigeo",
+                "departamento",
+                "provincia",
+                "distrito",
+                "fuente_anios",
+                "n_observaciones",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "ubigeo": "920202",
+                "departamento": "AMERICA",
+                "provincia": "ARGENTINA",
+                "distrito": "BUENOS AIRES",
+                "fuente_anios": "2021",
+                "n_observaciones": "1",
+            }
+        )
+
+    status = read_presidential_status(csv_path, load_ubigeo_catalog(catalog_path))
     section = build_section(status, sqlite_counts=None, top_n=2, csv_path=csv_path)
     updated = replace_readme_section(readme, section)
 
     assert "| Contabilizadas | 2 | 66.67% |" in updated
     assert "| Para envío al JEE | 1 | 33.33% |" in updated
+    assert (
+        "| Para envío al JEE | EXTRANJERO | AMERICA | ARGENTINA | BUENOS AIRES | "
+        "1 | 33.33% |"
+    ) in updated
+    assert "| Pendientes | PERU | - | - | - | 0 | 0.00% |" in updated
     assert "| FUERZA POPULAR | 18 | 45.00% |" in updated
     assert "| JUNTOS POR EL PERÚ | 12 | 30.00% |" in updated
     assert "| Otros candidatos | 10 | 25.00% |" in updated

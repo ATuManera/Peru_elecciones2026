@@ -17,8 +17,10 @@ from project_metadata import build_argument_parser
 
 DEFAULT_README = Path("README.md")
 DEFAULT_PRESIDENCIAL_CSV = Path("data/output/por_votacion/mesas_presidencial.csv")
+DEFAULT_UBIGEO_CATALOG = Path("data/output/catalogos/ubigeo_onpe_catalog.csv")
 DEFAULT_SQLITE = Path("data/state/onpe_scraper.sqlite")
 README_HEADING = "## Estado de Actualización de Datos"
+PENDING_STATE_ORDER = ("Para envío al JEE", "Pendiente")
 NON_VALID_VOTE_LABELS = {
     "VOTOS EN BLANCO",
     "VOTOS NULOS",
@@ -51,6 +53,7 @@ class ReadmeStatus:
     total_mesas: int
     unique_mesas: int
     state_counts: Counter[str]
+    pending_locations: Counter[tuple[str, str, str, str, str]]
     valid_votes_by_group: dict[str, int]
     non_valid_votes: int
     contabilizadas: int
@@ -74,6 +77,12 @@ def parse_args():
         type=Path,
         default=DEFAULT_PRESIDENCIAL_CSV,
         help="CSV presidencial generado por split_mesas_por_votacion.py",
+    )
+    parser.add_argument(
+        "--ubigeo-catalog",
+        type=Path,
+        default=DEFAULT_UBIGEO_CATALOG,
+        help="Catálogo UBIGEO ONPE con nombres de región, provincia y distrito",
     )
     parser.add_argument(
         "--sqlite",
@@ -121,6 +130,48 @@ def current_git_commit() -> str | None:
     return result.stdout.strip() or None
 
 
+def load_ubigeo_catalog(catalog_path: Path) -> dict[str, tuple[str, str, str]]:
+    if not catalog_path.exists():
+        return {}
+
+    catalog = {}
+    with catalog_path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            ubigeo = (row.get("ubigeo") or "").strip()
+            if not ubigeo:
+                continue
+            catalog[ubigeo] = (
+                (row.get("departamento") or "").strip() or "SIN REGIÓN",
+                (row.get("provincia") or "").strip() or "SIN PROVINCIA",
+                (row.get("distrito") or "").strip() or "SIN DISTRITO",
+            )
+            catalog.setdefault(f"D:{ubigeo[:2]}", (catalog[ubigeo][0], "", ""))
+            catalog.setdefault(f"P:{ubigeo[:4]}", ("", catalog[ubigeo][1], ""))
+    return catalog
+
+
+def scope_from_ubigeo(ubigeo: str) -> str:
+    return "EXTRANJERO" if ubigeo.startswith("92") else "PERU"
+
+
+def territory_from_row(
+    row: dict[str, str], ubigeo_catalog: dict[str, tuple[str, str, str]]
+) -> tuple[str, str, str, str]:
+    ubigeo = (row.get("ubigeoNivel03") or "").strip()
+    scope = scope_from_ubigeo(ubigeo)
+    exact = ubigeo_catalog.get(ubigeo)
+    if exact:
+        region, province, district = exact
+    else:
+        region = ubigeo_catalog.get(f"D:{ubigeo[:2]}", ("", "", ""))[0]
+        province = ubigeo_catalog.get(f"P:{ubigeo[:4]}", ("", "", ""))[1]
+        region = region or (row.get("ubigeoNivel01") or "").strip() or "SIN REGIÓN"
+        province = province or (row.get("ubigeoNivel02") or "").strip() or "SIN PROVINCIA"
+        district = f"SIN NOMBRE ({ubigeo})" if ubigeo else "SIN DISTRITO"
+    return scope, region, province, district
+
+
 def vote_detail_indices(fieldnames: list[str]) -> list[str]:
     indices = []
     for field in fieldnames:
@@ -131,13 +182,17 @@ def vote_detail_indices(fieldnames: list[str]) -> list[str]:
     return sorted(indices, key=lambda item: int(item) if item.isdigit() else item)
 
 
-def read_presidential_status(csv_path: Path) -> ReadmeStatus:
+def read_presidential_status(
+    csv_path: Path, ubigeo_catalog: dict[str, tuple[str, str, str]] | None = None
+) -> ReadmeStatus:
     if not csv_path.exists():
         raise FileNotFoundError(f"No existe el CSV presidencial: {csv_path}")
 
+    ubigeo_catalog = ubigeo_catalog or {}
     rows = 0
     mesas: set[str] = set()
     state_counts: Counter[str] = Counter()
+    pending_locations: Counter[tuple[str, str, str, str, str]] = Counter()
     valid_votes_by_group: dict[str, int] = defaultdict(int)
     non_valid_votes = 0
     contabilizadas = 0
@@ -156,6 +211,10 @@ def read_presidential_status(csv_path: Path) -> ReadmeStatus:
 
             state = (row.get("descripcionEstadoActa") or row.get("estado_control") or "").strip()
             state_counts[state or "Sin estado"] += 1
+
+            if state in PENDING_STATE_ORDER:
+                scope, region, province, district = territory_from_row(row, ubigeo_catalog)
+                pending_locations[(state, scope, region, province, district)] += 1
 
             if state != "Contabilizada":
                 continue
@@ -180,6 +239,7 @@ def read_presidential_status(csv_path: Path) -> ReadmeStatus:
         total_mesas=rows,
         unique_mesas=len(mesas),
         state_counts=state_counts,
+        pending_locations=pending_locations,
         valid_votes_by_group=dict(valid_votes_by_group),
         non_valid_votes=non_valid_votes,
         contabilizadas=contabilizadas,
@@ -212,6 +272,35 @@ def ordered_state_items(state_counts: Counter[str]) -> list[tuple[str, int]]:
         if state not in seen:
             items.append((state, count))
     return items
+
+
+def ordered_pending_locations(
+    pending_locations: Counter[tuple[str, str, str, str, str]]
+) -> list[tuple[tuple[str, str, str, str, str], int]]:
+    state_rank = {state: index for index, state in enumerate(PENDING_STATE_ORDER)}
+    scope_rank = {"PERU": 0, "EXTRANJERO": 1}
+    return sorted(
+        pending_locations.items(),
+        key=lambda item: (
+            state_rank.get(item[0][0], 99),
+            scope_rank.get(item[0][1], 99),
+            item[0][2],
+            item[0][3],
+            item[0][4],
+        ),
+    )
+
+
+def missing_pending_scope_rows(
+    pending_locations: Counter[tuple[str, str, str, str, str]]
+) -> list[tuple[tuple[str, str, str, str, str], int]]:
+    present = {(state, scope) for state, scope, _, _, _ in pending_locations}
+    rows = []
+    for state in PENDING_STATE_ORDER:
+        for scope in ("PERU", "EXTRANJERO"):
+            if (state, scope) not in present:
+                rows.append(((state, scope, "-", "-", "-"), 0))
+    return rows
 
 
 def build_section(
@@ -263,6 +352,29 @@ def build_section(
     lines.extend(
         [
             "",
+            "Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:",
+            "",
+            "| Estado | Ámbito | Región | Provincia | Distrito | Mesas | % del universo |",
+            "|---|---|---|---|---|---:|---:|",
+        ]
+    )
+
+    if status.pending_locations:
+        territorial_rows = ordered_pending_locations(status.pending_locations)
+        territorial_rows.extend(missing_pending_scope_rows(status.pending_locations))
+        for (state, scope, region, province, district), count in territorial_rows:
+            label = STATE_LABELS.get(state, state)
+            lines.append(
+                "| "
+                f"{label} | {scope} | {region} | {province} | {district} | "
+                f"{fmt_int(count)} | {fmt_pct(count, status.total_mesas)} |"
+            )
+    else:
+        lines.append("| Sin mesas | - | - | - | - | 0 | 0.00% |")
+
+    lines.extend(
+        [
+            "",
             "Votos válidos por organización política en mesas contabilizadas:",
             "",
             "| Grupo | Votos válidos | % votos válidos |",
@@ -303,7 +415,8 @@ def replace_readme_section(readme_text: str, section: str) -> str:
 
 def main() -> None:
     args = parse_args()
-    status = read_presidential_status(args.presidencial_csv)
+    ubigeo_catalog = load_ubigeo_catalog(args.ubigeo_catalog)
+    status = read_presidential_status(args.presidencial_csv, ubigeo_catalog)
     sqlite_counts = sqlite_state_counts(args.sqlite)
     section = build_section(status, sqlite_counts, args.top, args.presidencial_csv)
 
