@@ -39,13 +39,13 @@ Los datos publicados tienen un ciclo de actualización distinto al del código: 
 
 ## Estado de Actualización de Datos
 
-Tomando como referencia `data/output/por_votacion/mesas_presidencial.csv`, las mesas consolidadas y el archivo presidencial están actualizados al **100.00%** de mesas contabilizadas para la elección presidencial.
+Según el resumen público de ONPE para la elección presidencial, las mesas consolidadas y el archivo presidencial deben contrastarse contra un universo de **92,766** mesas. Con corte de verificación al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.49%**.
 
 Resumen de mesas presidenciales por estado:
 
-- Contabilizadas: 27,350
-- Enviadas al JEE: 0
-- Pendientes: 0
+- Contabilizadas: 90,435
+- Para envío al JEE: 2,330
+- Pendientes: 1
 
 ## Alcance Actual
 
