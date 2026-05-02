@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Optional
-import re
 from zoneinfo import ZoneInfo
 
 try:
@@ -293,7 +292,14 @@ class SQLiteState:
 
     def iter_downloaded_rows(self) -> Iterable[sqlite3.Row]:
         cursor = self.conn().execute(
-            "SELECT * FROM mesas WHERE status = ? ORDER BY codigo_mesa", (STATUS_DETAIL_OK,)
+            """
+            SELECT * FROM mesas
+            WHERE json_path IS NOT NULL
+              AND json_path != ''
+              AND status NOT IN (?, ?, ?)
+            ORDER BY codigo_mesa
+            """,
+            (STATUS_NOT_FOUND, STATUS_INVALID_RESPONSE, STATUS_FAILED_FINAL),
         )
         yield from cursor
 
