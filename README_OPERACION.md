@@ -93,7 +93,7 @@ Este paso actualiza automáticamente:
 - avance de mesas contabilizadas;
 - snapshot de datos con CSV fuente, fecha/hora de modificación del CSV y commit local de base;
 - resumen por estado;
-- CSV con desagregado territorial por `PERU` / `EXTRANJERO`, región, provincia y distrito para `Para envío al JEE` y `Pendiente`;
+- CSV UTF-8 con BOM y vista Markdown renderizada con desagregado territorial por `PERU` / `EXTRANJERO`, región, provincia y distrito para `Para envío al JEE` y `Pendiente`;
 - cuadro de votos válidos con los primeros 5 grupos y `Otros candidatos`;
 - nota de blancos, nulos e impugnados excluidos del denominador ONPE de votos válidos.
 
@@ -179,6 +179,7 @@ python3 refresh_presidencial_only_v2.py \
 - `./data/output/mesas_consolidado.csv`
 - `./data/output/por_votacion/mesas_presidencial.csv`
 - `./data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv`
+- `./data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md`
 - `./data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`
 - `./data/state/onpe_scraper.sqlite`
 - `./README.md`

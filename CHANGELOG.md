@@ -4,6 +4,12 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 El proyecto sigue versionado semántico para el código y las herramientas operativas. Los CSV publicados pueden actualizarse entre versiones mediante refresh, rebuild y split; para reproducibilidad, citar también el commit usado.
 
+## 0.3.2 - 2026-05-02
+
+- Genera `data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md` como vista renderizada en GitHub del desagregado territorial.
+- Escribe `data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv` con BOM UTF-8 para mejorar compatibilidad con visores crudos y hojas de cálculo.
+- Actualiza README para enlazar primero la vista Markdown y dejar el CSV como descarga directa.
+
 ## 0.3.1 - 2026-05-02
 
 - Agrega `update_readme_status.py` y el comando instalable `onpe-update-readme-status` para recalcular automáticamente el estado de avance presidencial en README después de cada refresh/rebuild/split.

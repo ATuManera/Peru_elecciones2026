@@ -24,6 +24,7 @@ data/output/**/*
 !data/output/
 !data/output/**/
 !data/output/**/*.csv
+!data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md
 data/reports/**/*
 !data/reports/
 !data/reports/**/

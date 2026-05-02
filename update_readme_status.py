@@ -21,6 +21,9 @@ DEFAULT_UBIGEO_CATALOG = Path("data/output/catalogos/ubigeo_onpe_catalog.csv")
 DEFAULT_PENDING_TERRITORIAL_OUTPUT = Path(
     "data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv"
 )
+DEFAULT_PENDING_TERRITORIAL_MARKDOWN_OUTPUT = Path(
+    "data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md"
+)
 DEFAULT_SQLITE = Path("data/state/onpe_scraper.sqlite")
 README_HEADING = "## Estado de Actualización de Datos"
 PENDING_STATE_ORDER = ("Para envío al JEE", "Pendiente")
@@ -99,6 +102,12 @@ def parse_args():
         type=Path,
         default=DEFAULT_PENDING_TERRITORIAL_OUTPUT,
         help="CSV de detalle territorial para mesas en JEE o pendientes",
+    )
+    parser.add_argument(
+        "--pending-territorial-markdown-output",
+        type=Path,
+        default=DEFAULT_PENDING_TERRITORIAL_MARKDOWN_OUTPUT,
+        help="Markdown renderizable del detalle territorial para mesas en JEE o pendientes",
     )
     parser.add_argument("--top", type=int, default=5, help="Cantidad de grupos a mostrar antes de Otros")
     parser.add_argument("--dry-run", action="store_true", help="Imprime la sección sin escribir README.md")
@@ -339,7 +348,7 @@ def pending_territorial_rows(
 
 def write_pending_territorial_csv(status: ReadmeStatus, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with output_path.open("w", encoding="utf-8", newline="") as f:
+    with output_path.open("w", encoding="utf-8-sig", newline="") as f:
         writer = csv.DictWriter(
             f,
             fieldnames=[
@@ -369,12 +378,46 @@ def write_pending_territorial_csv(status: ReadmeStatus, output_path: Path) -> No
             )
 
 
+def markdown_cell(value: str | int) -> str:
+    return str(value).replace("|", "\\|")
+
+
+def write_pending_territorial_markdown(status: ReadmeStatus, output_path: Path, csv_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = pending_territorial_rows(status.pending_locations)
+    lines = [
+        "# Desagregado territorial de mesas presidenciales para envío al JEE o pendientes",
+        "",
+        (
+            "Reporte generado automáticamente por `update_readme_status.py`. "
+            f"Universo presidencial: **{fmt_int(status.total_mesas)}** mesas."
+        ),
+        "",
+        f"CSV descargable: [{csv_path.as_posix()}]({csv_path.as_posix()}).",
+        "",
+        "| Estado | Ámbito | Región | Provincia | Distrito | Mesas | % del universo |",
+        "|---|---|---|---|---|---:|---:|",
+    ]
+    for state, scope, region, province, district, count in rows:
+        lines.append(
+            "| "
+            f"{markdown_cell(STATE_LABELS.get(state, state))} | "
+            f"{markdown_cell(scope)} | "
+            f"{markdown_cell(region)} | "
+            f"{markdown_cell(province)} | "
+            f"{markdown_cell(district)} | "
+            f"{fmt_int(count)} | {fmt_pct(count, status.total_mesas)} |"
+        )
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def build_section(
     status: ReadmeStatus,
     sqlite_counts: Counter[str] | None,
     top_n: int,
     csv_path: Path = DEFAULT_PRESIDENCIAL_CSV,
     pending_territorial_output: Path = DEFAULT_PENDING_TERRITORIAL_OUTPUT,
+    pending_territorial_markdown_output: Path = DEFAULT_PENDING_TERRITORIAL_MARKDOWN_OUTPUT,
 ) -> str:
     csv_label = csv_path.as_posix()
     source = f"`{csv_label}`"
@@ -422,7 +465,10 @@ def build_section(
             "Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:",
             "",
             (
-                "Ver "
+                "Ver vista renderizada: "
+                f"[{pending_territorial_markdown_output.as_posix()}]"
+                f"({pending_territorial_markdown_output.as_posix()}). "
+                "CSV descargable: "
                 f"[{pending_territorial_output.as_posix()}]"
                 f"({pending_territorial_output.as_posix()})."
             ),
@@ -481,6 +527,7 @@ def main() -> None:
         args.top,
         args.presidencial_csv,
         args.pending_territorial_output,
+        args.pending_territorial_markdown_output,
     )
 
     if args.dry_run:
@@ -490,6 +537,9 @@ def main() -> None:
     readme_text = args.readme.read_text(encoding="utf-8")
     args.readme.write_text(replace_readme_section(readme_text, section), encoding="utf-8")
     write_pending_territorial_csv(status, args.pending_territorial_output)
+    write_pending_territorial_markdown(
+        status, args.pending_territorial_markdown_output, args.pending_territorial_output
+    )
     print(
         "README actualizado: "
         f"{fmt_int(status.contabilizadas)}/{fmt_int(status.total_mesas)} mesas contabilizadas "

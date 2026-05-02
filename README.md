@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
-[![Version](https://img.shields.io/badge/version-0.3.1-green.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.3.2-green.svg)](pyproject.toml)
 
 Herramientas operativas para descargar actas desde la API pública de ONPE, reconstruir un CSV consolidado y separar los resultados por tipo de elección.
 
@@ -31,12 +31,13 @@ Ver `LICENSE` para los términos completos y `NOTICE` para la atribución del pr
 
 ## Versionado
 
-El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.3.1**.
+El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.3.2**.
 
 - `0.1.0`: flujo base para descargar, reconstruir y separar resultados ONPE 2026.
 - `0.2.0`: incorpora insumos históricos oficiales de ONPE, el script `build_ausentismo_presidencial.py` y el CSV consolidado de ausentismo presidencial 2006-2026.
 - `0.3.0`: agrega `consultar_padron_mesas.py`, el comando `onpe-consultar-padron-mesas` y corrige el rebuild de `mesas_consolidado.csv` para incluir todo JSON descargado válido, evitando excluir mesas cuyo estado agregado quedó desfasado.
 - `0.3.1`: agrega `update_readme_status.py`, el comando `onpe-update-readme-status`, el snapshot de datos en README y el CSV territorial de mesas presidenciales `Para envío al JEE` o `Pendiente`.
+- `0.3.2`: agrega una vista Markdown renderizada para el desagregado territorial y emite el CSV territorial con BOM UTF-8 para mejorar compatibilidad de visualización.
 
 Los datos publicados tienen un ciclo de actualización distinto al del código: pueden cambiar con cada refresh incremental, rebuild y split. Para reproducibilidad, se recomienda citar la ruta del archivo, la fecha de descarga o actualización y el commit de GitHub usado como referencia.
 
@@ -44,7 +45,7 @@ Los datos publicados tienen un ciclo de actualización distinto al del código: 
 
 Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.49%**.
 
-Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **2 de mayo de 2026 14:00:43 PET**. Commit local de base: `b1e902e`.
+Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **2 de mayo de 2026 14:00:43 PET**. Commit local de base: `ce46f20`.
 
 Resumen de mesas presidenciales por estado:
 
@@ -56,7 +57,7 @@ Resumen de mesas presidenciales por estado:
 
 Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:
 
-Ver [data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv).
+Ver vista renderizada: [data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md). CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv).
 
 Votos válidos por organización política en mesas contabilizadas:
 
@@ -306,6 +307,7 @@ Directorios y archivos principales:
 - `data/output/por_votacion/`: detalle del resto de elecciones en CSV separados por elección.
 - [`data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`](https://github.com/ATuManera/Peru_elecciones2026/raw/main/data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv?download=1): tabla consolidada de ausentismo presidencial por mesa y año. Click para descargar el CSV directamente.
 - [`data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv`](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv): detalle territorial de mesas presidenciales `Para envío al JEE` o `Pendiente`.
+- [`data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md`](data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.md): vista renderizada del mismo detalle territorial para lectura en GitHub.
 - `data/reports/`: reportes básicos del scraper.
 - `data/manifests/`: manifiesto de descarga.
 

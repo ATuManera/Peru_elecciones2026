@@ -151,11 +151,13 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         read_presidential_status,
         replace_readme_section,
         write_pending_territorial_csv,
+        write_pending_territorial_markdown,
     )
 
     csv_path = tmp_path / "mesas_presidencial.csv"
     catalog_path = tmp_path / "ubigeo_onpe_catalog.csv"
     pending_output = tmp_path / "desagregado_pendientes.csv"
+    pending_markdown = tmp_path / "desagregado_pendientes.md"
     readme = "\n".join(
         [
             "# Proyecto",
@@ -261,15 +263,24 @@ def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
         top_n=2,
         csv_path=csv_path,
         pending_territorial_output=pending_output,
+        pending_territorial_markdown_output=pending_markdown,
     )
     updated = replace_readme_section(readme, section)
     write_pending_territorial_csv(status, pending_output)
-    pending_rows = list(csv.DictReader(pending_output.open(encoding="utf-8", newline="")))
+    write_pending_territorial_markdown(status, pending_markdown, pending_output)
+    pending_rows = list(csv.DictReader(pending_output.open(encoding="utf-8-sig", newline="")))
+    pending_markdown_text = pending_markdown.read_text(encoding="utf-8")
 
     assert "| Contabilizadas | 2 | 66.67% |" in updated
     assert "| Para envío al JEE | 1 | 33.33% |" in updated
+    assert pending_output.read_bytes().startswith(b"\xef\xbb\xbf")
     assert f"[{pending_output.as_posix()}]({pending_output.as_posix()})" in updated
+    assert f"[{pending_markdown.as_posix()}]({pending_markdown.as_posix()})" in updated
     assert "| Para envío al JEE | EXTRANJERO | AMERICA | ARGENTINA | BUENOS AIRES |" not in updated
+    assert (
+        "| Para envío al JEE | EXTRANJERO | AMERICA | ARGENTINA | BUENOS AIRES | "
+        "1 | 33.33% |"
+    ) in pending_markdown_text
     assert {
         "estado": "Para envío al JEE",
         "ambito": "EXTRANJERO",
