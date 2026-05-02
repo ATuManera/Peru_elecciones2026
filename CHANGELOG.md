@@ -4,6 +4,14 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 El proyecto sigue versionado semántico para el código y las herramientas operativas. Los CSV publicados pueden actualizarse entre versiones mediante refresh, rebuild y split; para reproducibilidad, citar también el commit usado.
 
+## 0.3.0 - 2026-05-02
+
+- Agrega `consultar_padron_mesas.py` para consultar mesa de votación desde una lista cerrada de DNIs provistos explícitamente en TXT.
+- Agrega el comando instalable `onpe-consultar-padron-mesas`.
+- Corrige el rebuild de `mesas_consolidado.csv` para incluir todo JSON descargado válido, aunque el estado agregado de `mesas` haya quedado desfasado después de un refresh presidencial.
+- Regenera `mesas_consolidado.csv` y los splits por votación con cobertura presidencial alineada al control SQLite local.
+- Actualiza el estado de datos presidenciales documentado en README.
+
 ## 0.2.0 - 2026-05-01
 
 - Agrega insumos históricos oficiales de ONPE para primera vuelta presidencial 2006, 2011, 2016 y 2021.

@@ -2,17 +2,18 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
-[![Version](https://img.shields.io/badge/version-0.2.0-green.svg)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.3.0-green.svg)](pyproject.toml)
 
 Herramientas operativas para descargar actas desde la API pública de ONPE, reconstruir un CSV consolidado y separar los resultados por tipo de elección.
 
-Este repositorio queda enfocado en cuatro tareas:
+Este repositorio queda enfocado en seis tareas:
 
 1. Descargar JSON crudos de actas ONPE por código de mesa.
 2. Mantener estado local de descarga en SQLite para poder reanudar.
 3. Reconstruir `mesas_consolidado.csv` desde los JSON descargados.
 4. Separar el consolidado en archivos por elección.
 5. Consolidar una tabla comparativa de ausentismo presidencial por mesa para 2006, 2011, 2016, 2021 y 2026.
+6. Consultar mesa de votación para una lista cerrada de DNIs provistos explícitamente.
 
 ## Disponibilidad Pública de los Datos
 
@@ -30,10 +31,11 @@ Ver `LICENSE` para los términos completos y `NOTICE` para la atribución del pr
 
 ## Versionado
 
-El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.2.0**.
+El proyecto usa versionado semántico para el código y las herramientas operativas. La versión actual es **0.3.0**.
 
 - `0.1.0`: flujo base para descargar, reconstruir y separar resultados ONPE 2026.
 - `0.2.0`: incorpora insumos históricos oficiales de ONPE, el script `build_ausentismo_presidencial.py` y el CSV consolidado de ausentismo presidencial 2006-2026.
+- `0.3.0`: agrega `consultar_padron_mesas.py`, el comando `onpe-consultar-padron-mesas` y corrige el rebuild de `mesas_consolidado.csv` para incluir todo JSON descargado válido, evitando excluir mesas cuyo estado agregado quedó desfasado.
 
 Los datos publicados tienen un ciclo de actualización distinto al del código: pueden cambiar con cada refresh incremental, rebuild y split. Para reproducibilidad, se recomienda citar la ruta del archivo, la fecha de descarga o actualización y el commit de GitHub usado como referencia.
 
