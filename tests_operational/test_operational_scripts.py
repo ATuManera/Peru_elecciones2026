@@ -21,6 +21,7 @@ def test_main_scripts_show_help():
         "build_ausentismo_presidencial.py",
         "validate_ubigeo_onpe_mapping.py",
         "consultar_padron_mesas.py",
+        "update_readme_status.py",
     ):
         result = subprocess.run(
             [sys.executable, str(ROOT / script), "--help"],
@@ -141,3 +142,82 @@ def test_consultar_padron_mesas_loads_unique_valid_dnis(tmp_path):
     assert invalid == []
     assert mask_dni("12345678") == "12****78"
     assert extract_mesa({"data": {"codigoMesa": "050915"}}) == "050915"
+
+
+def test_update_readme_status_replaces_section_from_presidential_csv(tmp_path):
+    from update_readme_status import build_section, read_presidential_status, replace_readme_section
+
+    csv_path = tmp_path / "mesas_presidencial.csv"
+    readme = "\n".join(
+        [
+            "# Proyecto",
+            "",
+            "## Estado de Actualización de Datos",
+            "",
+            "Texto viejo.",
+            "",
+            "## Alcance Actual",
+            "",
+            "Contenido siguiente.",
+            "",
+        ]
+    )
+    fieldnames = [
+        "codigoMesa",
+        "descripcionEstadoActa",
+        "detalle_1_descripcion",
+        "detalle_1_nvotos",
+        "detalle_2_descripcion",
+        "detalle_2_nvotos",
+        "detalle_3_descripcion",
+        "detalle_3_nvotos",
+    ]
+    rows = [
+        {
+            "codigoMesa": "000001",
+            "descripcionEstadoActa": "Contabilizada",
+            "detalle_1_descripcion": "FUERZA POPULAR",
+            "detalle_1_nvotos": "17",
+            "detalle_2_descripcion": "JUNTOS POR EL PERÚ",
+            "detalle_2_nvotos": "12",
+            "detalle_3_descripcion": "VOTOS NULOS",
+            "detalle_3_nvotos": "3",
+        },
+        {
+            "codigoMesa": "000002",
+            "descripcionEstadoActa": "Contabilizada",
+            "detalle_1_descripcion": "FUERZA POPULAR",
+            "detalle_1_nvotos": "1",
+            "detalle_2_descripcion": "RENOVACIÓN POPULAR",
+            "detalle_2_nvotos": "10",
+            "detalle_3_descripcion": "VOTOS EN BLANCO",
+            "detalle_3_nvotos": "2",
+        },
+        {
+            "codigoMesa": "000003",
+            "descripcionEstadoActa": "Para envío al JEE",
+            "detalle_1_descripcion": "FUERZA POPULAR",
+            "detalle_1_nvotos": "999",
+            "detalle_2_descripcion": "RENOVACIÓN POPULAR",
+            "detalle_2_nvotos": "999",
+            "detalle_3_descripcion": "VOTOS NULOS",
+            "detalle_3_nvotos": "999",
+        },
+    ]
+
+    with csv_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    status = read_presidential_status(csv_path)
+    section = build_section(status, sqlite_counts=None, top_n=2)
+    updated = replace_readme_section(readme, section)
+
+    assert "| Contabilizadas | 2 | 66.67% |" in updated
+    assert "| Para envío al JEE | 1 | 33.33% |" in updated
+    assert "| FUERZA POPULAR | 18 | 45.00% |" in updated
+    assert "| JUNTOS POR EL PERÚ | 12 | 30.00% |" in updated
+    assert "| Otros candidatos | 10 | 25.00% |" in updated
+    assert "Blancos, nulos e impugnados suman **5** votos" in updated
+    assert "## Alcance Actual" in updated

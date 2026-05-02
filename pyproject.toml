@@ -26,6 +26,7 @@ onpe-refresh-presidencial = "refresh_presidencial_only_v2:main"
 onpe-build-ausentismo = "build_ausentismo_presidencial:main"
 onpe-validate-ubigeo = "validate_ubigeo_onpe_mapping:main"
 onpe-consultar-padron-mesas = "consultar_padron_mesas:main"
+onpe-update-readme-status = "update_readme_status:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -40,6 +41,7 @@ only-include = [
     "split_mesas_por_votacion.py",
     "validate_ubigeo_onpe_mapping.py",
     "consultar_padron_mesas.py",
+    "update_readme_status.py",
 ]
 
 [tool.pytest.ini_options]

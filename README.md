@@ -41,13 +41,28 @@ Los datos publicados tienen un ciclo de actualización distinto al del código: 
 
 ## Estado de Actualización de Datos
 
-Según `data/output/mesas_consolidado.csv`, `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.49%**.
+Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.49%**.
 
 Resumen de mesas presidenciales por estado:
 
-- Contabilizadas: 90,441
-- Para envío al JEE: 2,325
-- Pendientes: 0
+| Estado | Mesas | % del universo |
+|---|---:|---:|
+| Contabilizadas | 90,441 | 97.49% |
+| Para envío al JEE | 2,325 | 2.51% |
+| Pendientes | 0 | 0.00% |
+
+Votos válidos por organización política en mesas contabilizadas:
+
+| Grupo | Votos válidos | % votos válidos |
+|---|---:|---:|
+| FUERZA POPULAR | 2,802,488 | 17.12% |
+| JUNTOS POR EL PERÚ | 1,972,140 | 12.05% |
+| RENOVACIÓN POPULAR | 1,944,558 | 11.88% |
+| PARTIDO DEL BUEN GOBIERNO | 1,799,033 | 10.99% |
+| PARTIDO CÍVICO OBRAS | 1,662,687 | 10.16% |
+| Otros candidatos | 6,188,245 | 37.80% |
+
+Blancos, nulos e impugnados suman **3,309,094** votos y no forman parte del denominador de votos válidos ONPE.
 
 ## Alcance Actual
 
@@ -56,6 +71,7 @@ El proyecto simplificado conserva solo el flujo operativo de datos ONPE:
 - `onpe_scraper.py`: descarga, estado SQLite, rebuild de CSV y reportes básicos.
 - `refresh_presidencial_only_v2.py`: refresh incremental solo de Presidencial (`idEleccion = 10`).
 - `split_mesas_por_votacion.py`: split del consolidado en 5 archivos por elección.
+- `update_readme_status.py`: recalcula la sección `Estado de Actualización de Datos` desde el CSV presidencial.
 - `build_ausentismo_presidencial.py`: consolidación de ausentismo presidencial por mesa con fuentes históricas ONPE y datos 2026.
 - `consultar_padron_mesas.py`: consulta de mesa de votación para una lista cerrada de DNIs provistos en TXT.
 - `README_OPERACION.md`: guía corta de operación diaria.
@@ -240,6 +256,7 @@ python3 onpe_scraper.py --out ./data --rebuild-csv
 python3 split_mesas_por_votacion.py \
   --input ./data/output/mesas_consolidado.csv \
   --outdir ./data/output/por_votacion
+python3 update_readme_status.py
 python3 build_ausentismo_presidencial.py
 ```
 
@@ -377,6 +394,7 @@ python3 onpe_scraper.py --out ./data --rebuild-csv
 python3 split_mesas_por_votacion.py \
   --input ./data/output/mesas_consolidado.csv \
   --outdir ./data/output/por_votacion
+python3 update_readme_status.py
 ```
 
 ## Nota Sobre Código Legado

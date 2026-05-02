@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+"""Actualiza la sección de estado de datos en README.md desde el CSV presidencial."""
+
+from __future__ import annotations
+
+import csv
+import sqlite3
+from collections import Counter, defaultdict
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+from project_metadata import build_argument_parser
+
+
+DEFAULT_README = Path("README.md")
+DEFAULT_PRESIDENCIAL_CSV = Path("data/output/por_votacion/mesas_presidencial.csv")
+DEFAULT_SQLITE = Path("data/state/onpe_scraper.sqlite")
+README_HEADING = "## Estado de Actualización de Datos"
+NON_VALID_VOTE_LABELS = {
+    "VOTOS EN BLANCO",
+    "VOTOS NULOS",
+    "VOTOS IMPUGNADOS",
+}
+STATE_LABELS = {
+    "Contabilizada": "Contabilizadas",
+    "Para envío al JEE": "Para envío al JEE",
+    "Pendiente": "Pendientes",
+}
+STATE_ORDER = ("Contabilizada", "Para envío al JEE", "Pendiente")
+MONTHS_ES = {
+    1: "enero",
+    2: "febrero",
+    3: "marzo",
+    4: "abril",
+    5: "mayo",
+    6: "junio",
+    7: "julio",
+    8: "agosto",
+    9: "septiembre",
+    10: "octubre",
+    11: "noviembre",
+    12: "diciembre",
+}
+
+
+@dataclass(frozen=True)
+class ReadmeStatus:
+    total_mesas: int
+    unique_mesas: int
+    state_counts: Counter[str]
+    valid_votes_by_group: dict[str, int]
+    non_valid_votes: int
+    contabilizadas: int
+
+    @property
+    def valid_total(self) -> int:
+        return sum(self.valid_votes_by_group.values())
+
+
+def parse_args():
+    parser = build_argument_parser(
+        description=(
+            "Actualiza README.md con avance presidencial, estados de mesa y votos válidos "
+            "calculados desde mesas_presidencial.csv."
+        ),
+        assisted_coauthors=("GPT-5.5",),
+    )
+    parser.add_argument("--readme", type=Path, default=DEFAULT_README, help="Ruta a README.md")
+    parser.add_argument(
+        "--presidencial-csv",
+        type=Path,
+        default=DEFAULT_PRESIDENCIAL_CSV,
+        help="CSV presidencial generado por split_mesas_por_votacion.py",
+    )
+    parser.add_argument(
+        "--sqlite",
+        type=Path,
+        default=DEFAULT_SQLITE,
+        help="SQLite operativo usado solo como referencia si existe",
+    )
+    parser.add_argument("--top", type=int, default=5, help="Cantidad de grupos a mostrar antes de Otros")
+    parser.add_argument("--dry-run", action="store_true", help="Imprime la sección sin escribir README.md")
+    return parser.parse_args()
+
+
+def fmt_int(value: int) -> str:
+    return f"{value:,}"
+
+
+def fmt_pct(numerator: int, denominator: int) -> str:
+    if denominator <= 0:
+        return "0.00%"
+    return f"{(numerator / denominator) * 100:.2f}%"
+
+
+def today_lima() -> str:
+    now = datetime.now(ZoneInfo("America/Lima"))
+    return f"{now.day} de {MONTHS_ES[now.month]} de {now.year}"
+
+
+def vote_detail_indices(fieldnames: list[str]) -> list[str]:
+    indices = []
+    for field in fieldnames:
+        if field.startswith("detalle_") and field.endswith("_descripcion"):
+            idx = field.removeprefix("detalle_").removesuffix("_descripcion")
+            if f"detalle_{idx}_nvotos" in fieldnames:
+                indices.append(idx)
+    return sorted(indices, key=lambda item: int(item) if item.isdigit() else item)
+
+
+def read_presidential_status(csv_path: Path) -> ReadmeStatus:
+    if not csv_path.exists():
+        raise FileNotFoundError(f"No existe el CSV presidencial: {csv_path}")
+
+    rows = 0
+    mesas: set[str] = set()
+    state_counts: Counter[str] = Counter()
+    valid_votes_by_group: dict[str, int] = defaultdict(int)
+    non_valid_votes = 0
+    contabilizadas = 0
+
+    with csv_path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames:
+            raise ValueError(f"CSV sin cabecera: {csv_path}")
+        detail_indices = vote_detail_indices(reader.fieldnames)
+
+        for row in reader:
+            rows += 1
+            mesa = (row.get("codigoMesa") or "").strip()
+            if mesa:
+                mesas.add(mesa)
+
+            state = (row.get("descripcionEstadoActa") or row.get("estado_control") or "").strip()
+            state_counts[state or "Sin estado"] += 1
+
+            if state != "Contabilizada":
+                continue
+
+            contabilizadas += 1
+            for idx in detail_indices:
+                label = (row.get(f"detalle_{idx}_descripcion") or "").strip()
+                raw_votes = (row.get(f"detalle_{idx}_nvotos") or "0").strip()
+                if not label:
+                    continue
+                try:
+                    votes = int(raw_votes)
+                except ValueError:
+                    votes = 0
+
+                if label in NON_VALID_VOTE_LABELS:
+                    non_valid_votes += votes
+                else:
+                    valid_votes_by_group[label] += votes
+
+    return ReadmeStatus(
+        total_mesas=rows,
+        unique_mesas=len(mesas),
+        state_counts=state_counts,
+        valid_votes_by_group=dict(valid_votes_by_group),
+        non_valid_votes=non_valid_votes,
+        contabilizadas=contabilizadas,
+    )
+
+
+def sqlite_state_counts(sqlite_path: Path) -> Counter[str] | None:
+    if not sqlite_path.exists():
+        return None
+
+    with sqlite3.connect(sqlite_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT estado_control, COUNT(*)
+            FROM mesa_presidencial_control
+            GROUP BY estado_control
+            """
+        ).fetchall()
+
+    return Counter({state or "Sin estado": count for state, count in rows})
+
+
+def ordered_state_items(state_counts: Counter[str]) -> list[tuple[str, int]]:
+    seen = set()
+    items: list[tuple[str, int]] = []
+    for state in STATE_ORDER:
+        items.append((state, state_counts.get(state, 0)))
+        seen.add(state)
+    for state, count in state_counts.most_common():
+        if state not in seen:
+            items.append((state, count))
+    return items
+
+
+def build_section(status: ReadmeStatus, sqlite_counts: Counter[str] | None, top_n: int) -> str:
+    source = "`data/output/por_votacion/mesas_presidencial.csv`"
+    if sqlite_counts and sum(sqlite_counts.values()) == status.total_mesas:
+        source += " y el control SQLite local"
+
+    top_groups = sorted(status.valid_votes_by_group.items(), key=lambda item: item[1], reverse=True)[:top_n]
+    top_votes = sum(votes for _, votes in top_groups)
+    other_votes = status.valid_total - top_votes
+
+    lines = [
+        README_HEADING,
+        "",
+        (
+            f"Según {source}, las mesas presidenciales consolidadas cubren un universo de "
+            f"**{fmt_int(status.total_mesas)}** mesas. Con corte de refresh al "
+            f"**{today_lima()}**, el avance de mesas contabilizadas es "
+            f"**{fmt_pct(status.contabilizadas, status.total_mesas)}**."
+        ),
+        "",
+        "Resumen de mesas presidenciales por estado:",
+        "",
+        "| Estado | Mesas | % del universo |",
+        "|---|---:|---:|",
+    ]
+
+    for state, count in ordered_state_items(status.state_counts):
+        label = STATE_LABELS.get(state, state)
+        lines.append(f"| {label} | {fmt_int(count)} | {fmt_pct(count, status.total_mesas)} |")
+
+    lines.extend(
+        [
+            "",
+            "Votos válidos por organización política en mesas contabilizadas:",
+            "",
+            "| Grupo | Votos válidos | % votos válidos |",
+            "|---|---:|---:|",
+        ]
+    )
+
+    for group, votes in top_groups:
+        lines.append(f"| {group} | {fmt_int(votes)} | {fmt_pct(votes, status.valid_total)} |")
+    if other_votes:
+        lines.append(
+            f"| Otros candidatos | {fmt_int(other_votes)} | {fmt_pct(other_votes, status.valid_total)} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            (
+                f"Blancos, nulos e impugnados suman **{fmt_int(status.non_valid_votes)}** votos "
+                "y no forman parte del denominador de votos válidos ONPE."
+            ),
+        ]
+    )
+    return "\n".join(lines)
+
+
+def replace_readme_section(readme_text: str, section: str) -> str:
+    start = readme_text.find(README_HEADING)
+    if start == -1:
+        raise ValueError(f"No se encontró la sección {README_HEADING!r} en README.md")
+
+    next_heading = readme_text.find("\n## ", start + len(README_HEADING))
+    if next_heading == -1:
+        return readme_text[:start] + section.rstrip() + "\n"
+
+    return readme_text[:start] + section.rstrip() + "\n\n" + readme_text[next_heading + 1 :]
+
+
+def main() -> None:
+    args = parse_args()
+    status = read_presidential_status(args.presidencial_csv)
+    sqlite_counts = sqlite_state_counts(args.sqlite)
+    section = build_section(status, sqlite_counts, args.top)
+
+    if args.dry_run:
+        print(section)
+        return
+
+    readme_text = args.readme.read_text(encoding="utf-8")
+    args.readme.write_text(replace_readme_section(readme_text, section), encoding="utf-8")
+    print(
+        "README actualizado: "
+        f"{fmt_int(status.contabilizadas)}/{fmt_int(status.total_mesas)} mesas contabilizadas "
+        f"({fmt_pct(status.contabilizadas, status.total_mesas)})"
+    )
+
+
+if __name__ == "__main__":
+    main()

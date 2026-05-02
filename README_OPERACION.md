@@ -79,7 +79,23 @@ Archivos esperados:
 - `mesas_senadores_distrito_electoral_multiple.csv`
 - `mesas_senadores_distrito_electoral_unico.csv`
 
-### 5. Reconstruir consolidado de ausentismo
+### 5. Actualizar estado publicado en README
+
+Después del rebuild y del split, recalcular la sección `Estado de Actualización de Datos`
+de `README.md` desde el CSV presidencial actualizado:
+
+```bash
+python3 update_readme_status.py
+```
+
+Este paso actualiza automáticamente:
+
+- avance de mesas contabilizadas;
+- resumen por estado;
+- cuadro de votos válidos con los primeros 5 grupos y `Otros candidatos`;
+- nota de blancos, nulos e impugnados excluidos del denominador ONPE de votos válidos.
+
+### 6. Reconstruir consolidado de ausentismo
 
 Si el refresh presidencial cambió datos 2026, después del rebuild y del split también se debe regenerar el consolidado histórico de ausentismo:
 
@@ -117,13 +133,14 @@ python3 refresh_presidencial_only_v2.py \
   --estado "Para envío al JEE"
 ```
 
-Después, volver a correr rebuild, split y consolidado de ausentismo:
+Después, volver a correr rebuild, split, actualización de README y consolidado de ausentismo:
 
 ```bash
 python3 onpe_scraper.py --out ./data --rebuild-csv
 python3 split_mesas_por_votacion.py \
   --input ./data/output/mesas_consolidado.csv \
   --outdir ./data/output/por_votacion
+python3 update_readme_status.py
 python3 build_ausentismo_presidencial.py
 ```
 
@@ -157,6 +174,7 @@ python3 refresh_presidencial_only_v2.py \
 - `./data/output/por_votacion/mesas_presidencial.csv`
 - `./data/output/ausentismo/mesas_ausentismo_presidencial_2006_2026.csv`
 - `./data/state/onpe_scraper.sqlite`
+- `./README.md`
 - `./cookie.txt`
 
 ## SQL Útil
