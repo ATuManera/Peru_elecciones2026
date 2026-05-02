@@ -18,9 +18,13 @@ from project_metadata import build_argument_parser
 DEFAULT_README = Path("README.md")
 DEFAULT_PRESIDENCIAL_CSV = Path("data/output/por_votacion/mesas_presidencial.csv")
 DEFAULT_UBIGEO_CATALOG = Path("data/output/catalogos/ubigeo_onpe_catalog.csv")
+DEFAULT_PENDING_TERRITORIAL_OUTPUT = Path(
+    "data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv"
+)
 DEFAULT_SQLITE = Path("data/state/onpe_scraper.sqlite")
 README_HEADING = "## Estado de Actualización de Datos"
 PENDING_STATE_ORDER = ("Para envío al JEE", "Pendiente")
+FOREIGN_REGIONS = {"AFRICA", "AMERICA", "ASIA", "EUROPA", "OCEANIA"}
 NON_VALID_VOTE_LABELS = {
     "VOTOS EN BLANCO",
     "VOTOS NULOS",
@@ -90,6 +94,12 @@ def parse_args():
         default=DEFAULT_SQLITE,
         help="SQLite operativo usado solo como referencia si existe",
     )
+    parser.add_argument(
+        "--pending-territorial-output",
+        type=Path,
+        default=DEFAULT_PENDING_TERRITORIAL_OUTPUT,
+        help="CSV de detalle territorial para mesas en JEE o pendientes",
+    )
     parser.add_argument("--top", type=int, default=5, help="Cantidad de grupos a mostrar antes de Otros")
     parser.add_argument("--dry-run", action="store_true", help="Imprime la sección sin escribir README.md")
     return parser.parse_args()
@@ -155,11 +165,14 @@ def scope_from_ubigeo(ubigeo: str) -> str:
     return "EXTRANJERO" if ubigeo.startswith("92") else "PERU"
 
 
+def scope_from_territory(ubigeo: str, region: str) -> str:
+    return "EXTRANJERO" if region in FOREIGN_REGIONS else scope_from_ubigeo(ubigeo)
+
+
 def territory_from_row(
     row: dict[str, str], ubigeo_catalog: dict[str, tuple[str, str, str]]
 ) -> tuple[str, str, str, str]:
     ubigeo = (row.get("ubigeoNivel03") or "").strip()
-    scope = scope_from_ubigeo(ubigeo)
     exact = ubigeo_catalog.get(ubigeo)
     if exact:
         region, province, district = exact
@@ -169,6 +182,7 @@ def territory_from_row(
         region = region or (row.get("ubigeoNivel01") or "").strip() or "SIN REGIÓN"
         province = province or (row.get("ubigeoNivel02") or "").strip() or "SIN PROVINCIA"
         district = f"SIN NOMBRE ({ubigeo})" if ubigeo else "SIN DISTRITO"
+    scope = scope_from_territory(ubigeo, region)
     return scope, region, province, district
 
 
@@ -303,11 +317,64 @@ def missing_pending_scope_rows(
     return rows
 
 
+def pending_territorial_rows(
+    pending_locations: Counter[tuple[str, str, str, str, str]]
+) -> list[tuple[str, str, str, str, str, int]]:
+    rows = [
+        (state, scope, region, province, district, count)
+        for (state, scope, region, province, district), count in ordered_pending_locations(
+            pending_locations
+        )
+    ]
+    rows.extend(
+        (state, scope, region, province, district, count)
+        for (state, scope, region, province, district), count in missing_pending_scope_rows(
+            pending_locations
+        )
+    )
+    if not rows:
+        return [("Sin mesas", "-", "-", "-", "-", 0)]
+    return rows
+
+
+def write_pending_territorial_csv(status: ReadmeStatus, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "estado",
+                "ambito",
+                "region",
+                "provincia",
+                "distrito",
+                "mesas",
+                "pct_universo",
+            ],
+        )
+        writer.writeheader()
+        for state, scope, region, province, district, count in pending_territorial_rows(
+            status.pending_locations
+        ):
+            writer.writerow(
+                {
+                    "estado": STATE_LABELS.get(state, state),
+                    "ambito": scope,
+                    "region": region,
+                    "provincia": province,
+                    "distrito": district,
+                    "mesas": count,
+                    "pct_universo": fmt_pct(count, status.total_mesas),
+                }
+            )
+
+
 def build_section(
     status: ReadmeStatus,
     sqlite_counts: Counter[str] | None,
     top_n: int,
     csv_path: Path = DEFAULT_PRESIDENCIAL_CSV,
+    pending_territorial_output: Path = DEFAULT_PENDING_TERRITORIAL_OUTPUT,
 ) -> str:
     csv_label = csv_path.as_posix()
     source = f"`{csv_label}`"
@@ -354,23 +421,13 @@ def build_section(
             "",
             "Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:",
             "",
-            "| Estado | Ámbito | Región | Provincia | Distrito | Mesas | % del universo |",
-            "|---|---|---|---|---|---:|---:|",
+            (
+                "Ver "
+                f"[{pending_territorial_output.as_posix()}]"
+                f"({pending_territorial_output.as_posix()})."
+            ),
         ]
     )
-
-    if status.pending_locations:
-        territorial_rows = ordered_pending_locations(status.pending_locations)
-        territorial_rows.extend(missing_pending_scope_rows(status.pending_locations))
-        for (state, scope, region, province, district), count in territorial_rows:
-            label = STATE_LABELS.get(state, state)
-            lines.append(
-                "| "
-                f"{label} | {scope} | {region} | {province} | {district} | "
-                f"{fmt_int(count)} | {fmt_pct(count, status.total_mesas)} |"
-            )
-    else:
-        lines.append("| Sin mesas | - | - | - | - | 0 | 0.00% |")
 
     lines.extend(
         [
@@ -418,7 +475,13 @@ def main() -> None:
     ubigeo_catalog = load_ubigeo_catalog(args.ubigeo_catalog)
     status = read_presidential_status(args.presidencial_csv, ubigeo_catalog)
     sqlite_counts = sqlite_state_counts(args.sqlite)
-    section = build_section(status, sqlite_counts, args.top, args.presidencial_csv)
+    section = build_section(
+        status,
+        sqlite_counts,
+        args.top,
+        args.presidencial_csv,
+        args.pending_territorial_output,
+    )
 
     if args.dry_run:
         print(section)
@@ -426,6 +489,7 @@ def main() -> None:
 
     readme_text = args.readme.read_text(encoding="utf-8")
     args.readme.write_text(replace_readme_section(readme_text, section), encoding="utf-8")
+    write_pending_territorial_csv(status, args.pending_territorial_output)
     print(
         "README actualizado: "
         f"{fmt_int(status.contabilizadas)}/{fmt_int(status.total_mesas)} mesas contabilizadas "

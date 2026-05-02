@@ -4,16 +4,20 @@ Todos los cambios relevantes del proyecto se documentan en este archivo.
 
 El proyecto sigue versionado semántico para el código y las herramientas operativas. Los CSV publicados pueden actualizarse entre versiones mediante refresh, rebuild y split; para reproducibilidad, citar también el commit usado.
 
+## 0.3.1 - 2026-05-02
+
+- Agrega `update_readme_status.py` y el comando instalable `onpe-update-readme-status` para recalcular automáticamente el estado de avance presidencial en README después de cada refresh/rebuild/split.
+- El estado generado en README ahora incluye snapshot de datos con CSV fuente, fecha/hora de modificación del CSV y commit local de base.
+- Genera `data/output/reportes/desagregado_territorial_mesas_presidencial_pendientes.csv` con desagregado territorial por `PERU` / `EXTRANJERO`, región, provincia y distrito para mesas `Para envío al JEE` y `Pendiente`.
+- Reemplaza la tabla territorial extensa del README por un enlace al CSV derivado.
+- Actualiza el estado de datos presidenciales documentado en README.
+
 ## 0.3.0 - 2026-05-02
 
 - Agrega `consultar_padron_mesas.py` para consultar mesa de votación desde una lista cerrada de DNIs provistos explícitamente en TXT.
 - Agrega el comando instalable `onpe-consultar-padron-mesas`.
-- Agrega `update_readme_status.py` y el comando instalable `onpe-update-readme-status` para recalcular automáticamente el estado de avance presidencial en README después de cada refresh/rebuild/split.
-- El estado generado en README ahora incluye snapshot de datos con CSV fuente, fecha/hora de modificación del CSV y commit local de base.
-- El estado generado en README ahora incluye desagregado territorial por `PERU` / `EXTRANJERO`, región, provincia y distrito para mesas `Para envío al JEE` y `Pendiente`.
 - Corrige el rebuild de `mesas_consolidado.csv` para incluir todo JSON descargado válido, aunque el estado agregado de `mesas` haya quedado desfasado después de un refresh presidencial.
 - Regenera `mesas_consolidado.csv` y los splits por votación con cobertura presidencial alineada al control SQLite local.
-- Actualiza el estado de datos presidenciales documentado en README.
 
 ## 0.2.0 - 2026-05-01
 
