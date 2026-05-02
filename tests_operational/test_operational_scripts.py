@@ -20,6 +20,7 @@ def test_main_scripts_show_help():
         "split_mesas_por_votacion.py",
         "build_ausentismo_presidencial.py",
         "validate_ubigeo_onpe_mapping.py",
+        "consultar_padron_mesas.py",
     ):
         result = subprocess.run(
             [sys.executable, str(ROOT / script), "--help"],
@@ -116,3 +117,27 @@ def test_outputs_versionados_validan_ubigeo_onpe():
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "Validación UBIGEO ONPE OK" in result.stdout
+
+
+def test_consultar_padron_mesas_loads_unique_valid_dnis(tmp_path):
+    from consultar_padron_mesas import extract_mesa, load_dnis, mask_dni
+
+    input_path = tmp_path / "dnis.txt"
+    input_path.write_text(
+        "\n".join(
+            [
+                "12345678",
+                "12-345-678 # comentario",
+                "",
+                "87654321",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    dnis, invalid = load_dnis(input_path)
+
+    assert dnis == ["12345678", "87654321"]
+    assert invalid == []
+    assert mask_dni("12345678") == "12****78"
+    assert extract_mesa({"data": {"codigoMesa": "050915"}}) == "050915"

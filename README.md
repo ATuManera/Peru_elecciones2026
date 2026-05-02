@@ -37,6 +37,16 @@ El proyecto usa versionado semántico para el código y las herramientas operati
 
 Los datos publicados tienen un ciclo de actualización distinto al del código: pueden cambiar con cada refresh incremental, rebuild y split. Para reproducibilidad, se recomienda citar la ruta del archivo, la fecha de descarga o actualización y el commit de GitHub usado como referencia.
 
+## Estado de Actualización de Datos
+
+Tomando como referencia `data/output/por_votacion/mesas_presidencial.csv`, las mesas consolidadas y el archivo presidencial están actualizados al **100.00%** de mesas contabilizadas para la elección presidencial.
+
+Resumen de mesas presidenciales por estado:
+
+- Contabilizadas: 27,350
+- Enviadas al JEE: 0
+- Pendientes: 0
+
 ## Alcance Actual
 
 El proyecto simplificado conserva solo el flujo operativo de datos ONPE:
@@ -45,6 +55,7 @@ El proyecto simplificado conserva solo el flujo operativo de datos ONPE:
 - `refresh_presidencial_only_v2.py`: refresh incremental solo de Presidencial (`idEleccion = 10`).
 - `split_mesas_por_votacion.py`: split del consolidado en 5 archivos por elección.
 - `build_ausentismo_presidencial.py`: consolidación de ausentismo presidencial por mesa con fuentes históricas ONPE y datos 2026.
+- `consultar_padron_mesas.py`: consulta de mesa de votación para una lista cerrada de DNIs provistos en TXT.
 - `README_OPERACION.md`: guía corta de operación diaria.
 
 Queda fuera del flujo principal el pipeline grande de análisis estadístico ubicado en `src/fraud_detector`. Ese código se considera legado/experimental y no es necesario para descargar, consolidar ni separar los datos ONPE.
@@ -90,6 +101,7 @@ onpe-scraper --help
 onpe-split-votacion --help
 onpe-refresh-presidencial --help
 onpe-build-ausentismo --help
+onpe-consultar-padron-mesas --help
 ```
 
 ## Uso de la API de ONPE
@@ -123,6 +135,26 @@ Buenas prácticas aplicadas por este repositorio:
 - No versionar cookies ni información de sesión. `cookie.txt` está excluido del repositorio.
 
 Algunas solicitudes pueden requerir una cookie vigente de navegación. Esa cookie debe obtenerse desde una sesión propia en el navegador y guardarse localmente en `cookie.txt`; no debe publicarse ni compartirse en commits, issues o documentación.
+
+### Consulta de padrón por lista cerrada de DNIs
+
+Para consultar el número de mesa desde el endpoint público de padrón:
+
+```bash
+python3 consultar_padron_mesas.py \
+  --input ./dnis.txt \
+  --output ./data/output/padron_mesas.csv \
+  --rps 0.5
+```
+
+El TXT debe contener un DNI de 8 dígitos por línea. El script deduplica entradas, no genera ni barre rangos y por defecto escribe sólo `dni_mask`, `dni_sha256`, estado, mesa y metadatos de consulta. Si necesitas conservar el DNI completo en el CSV, debe indicarse explícitamente:
+
+```bash
+python3 consultar_padron_mesas.py \
+  --input ./dnis.txt \
+  --output ./data/output/padron_mesas.csv \
+  --include-dni
+```
 
 ## Flujo Principal
 
