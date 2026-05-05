@@ -45,16 +45,16 @@ Los datos publicados tienen un ciclo de actualización distinto al del código: 
 
 ## Estado de Actualización de Datos
 
-Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **5 de mayo de 2026**, el avance de mesas contabilizadas es **97.90%**.
+Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **5 de mayo de 2026**, el avance de mesas contabilizadas es **97.98%**.
 
-Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **5 de mayo de 2026 00:29:14 PET**. Commit local de base: `651cec5`.
+Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **5 de mayo de 2026 12:58:07 PET**. Commit local de base: `016b9e1`.
 
 Resumen de mesas presidenciales por estado:
 
 | Estado | Mesas | Electores hábiles | % del universo |
 |---|---:|---:|---:|
-| Contabilizadas | 90,821 | 26,736,715 | 97.90% |
-| Para envío al JEE | 1,945 | 588,717 | 2.10% |
+| Contabilizadas | 90,895 | 26,759,182 | 97.98% |
+| Para envío al JEE | 1,871 | 566,250 | 2.02% |
 | Pendientes | 0 | 0 | 0.00% |
 
 Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:
@@ -63,18 +63,18 @@ Resumen por ámbito y región:
 
 | Estado | Ámbito | Región | Mesas | Electores hábiles | % del universo |
 |---|---|---|---:|---:|---:|
-| Para envío al JEE | PERU | LIMA | 730 | 215,897 | 0.79% |
-| Para envío al JEE | PERU | LORETO | 230 | 66,571 | 0.25% |
+| Para envío al JEE | PERU | LIMA | 680 | 201,009 | 0.73% |
+| Para envío al JEE | PERU | LORETO | 229 | 66,271 | 0.25% |
 | Para envío al JEE | PERU | PIURA | 141 | 40,749 | 0.15% |
 | Para envío al JEE | PERU | CUSCO | 118 | 33,858 | 0.13% |
 | Para envío al JEE | PERU | HUANUCO | 84 | 24,295 | 0.09% |
 | Para envío al JEE | PERU | UCAYALI | 66 | 18,983 | 0.07% |
 | Para envío al JEE | PERU | ICA | 64 | 18,761 | 0.07% |
 | Para envío al JEE | PERU | SAN MARTIN | 55 | 15,820 | 0.06% |
-| Para envío al JEE | PERU | ANCASH | 53 | 14,997 | 0.06% |
-| Para envío al JEE | PERU | HUANCAVELICA | 48 | 13,051 | 0.05% |
 | Para envío al JEE | PERU | CALLAO | 47 | 13,861 | 0.05% |
-| Para envío al JEE | PERU | CAJAMARCA | 46 | 13,178 | 0.05% |
+| Para envío al JEE | PERU | CAJAMARCA | 44 | 12,677 | 0.05% |
+| Para envío al JEE | PERU | ANCASH | 43 | 12,271 | 0.05% |
+| Para envío al JEE | PERU | HUANCAVELICA | 43 | 11,747 | 0.05% |
 | Para envío al JEE | PERU | PUNO | 26 | 7,550 | 0.03% |
 | Para envío al JEE | PERU | AMAZONAS | 23 | 6,239 | 0.02% |
 | Para envío al JEE | PERU | APURIMAC | 22 | 5,974 | 0.02% |
@@ -84,11 +84,11 @@ Resumen por ámbito y región:
 | Para envío al JEE | PERU | AREQUIPA | 12 | 3,496 | 0.01% |
 | Para envío al JEE | PERU | JUNIN | 8 | 2,345 | 0.01% |
 | Para envío al JEE | PERU | MOQUEGUA | 5 | 1,473 | 0.01% |
-| Para envío al JEE | PERU | PASCO | 4 | 1,092 | 0.00% |
+| Para envío al JEE | PERU | PASCO | 3 | 818 | 0.00% |
 | Para envío al JEE | PERU | LAMBAYEQUE | 1 | 297 | 0.00% |
 | Para envío al JEE | PERU | TACNA | 1 | 293 | 0.00% |
-| Para envío al JEE | EXTRANJERO | AMERICA | 89 | 43,693 | 0.10% |
-| Para envío al JEE | EXTRANJERO | EUROPA | 23 | 11,107 | 0.02% |
+| Para envío al JEE | EXTRANJERO | AMERICA | 85 | 41,701 | 0.09% |
+| Para envío al JEE | EXTRANJERO | EUROPA | 22 | 10,625 | 0.02% |
 | Para envío al JEE | EXTRANJERO | OCEANIA | 3 | 1,401 | 0.00% |
 | Para envío al JEE | EXTRANJERO | ASIA | 2 | 925 | 0.00% |
 | Pendientes | PERU | - | 0 | 0 | 0.00% |
@@ -100,14 +100,14 @@ Votos válidos por organización política en mesas contabilizadas:
 
 | Grupo | Votos válidos | % votos válidos |
 |---|---:|---:|
-| FUERZA POPULAR | 2,815,677 | 17.14% |
-| JUNTOS POR EL PERÚ | 1,977,860 | 12.04% |
-| RENOVACIÓN POPULAR | 1,952,206 | 11.88% |
-| PARTIDO DEL BUEN GOBIERNO | 1,804,794 | 10.98% |
-| PARTIDO CÍVICO OBRAS | 1,668,244 | 10.15% |
-| Otros candidatos | 6,211,404 | 37.80% |
+| FUERZA POPULAR | 2,818,295 | 17.14% |
+| JUNTOS POR EL PERÚ | 1,979,033 | 12.04% |
+| RENOVACIÓN POPULAR | 1,953,967 | 11.88% |
+| PARTIDO DEL BUEN GOBIERNO | 1,806,482 | 10.99% |
+| PARTIDO CÍVICO OBRAS | 1,669,670 | 10.15% |
+| Otros candidatos | 6,216,204 | 37.80% |
 
-Blancos, nulos e impugnados suman **3,326,510** votos y no forman parte del denominador de votos válidos ONPE.
+Blancos, nulos e impugnados suman **3,329,010** votos y no forman parte del denominador de votos válidos ONPE.
 
 ## Alcance Actual
 
