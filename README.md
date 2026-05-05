@@ -45,16 +45,16 @@ Los datos publicados tienen un ciclo de actualización distinto al del código: 
 
 ## Estado de Actualización de Datos
 
-Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **2 de mayo de 2026**, el avance de mesas contabilizadas es **97.56%**.
+Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **5 de mayo de 2026**, el avance de mesas contabilizadas es **97.90%**.
 
-Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **2 de mayo de 2026 18:54:57 PET**. Commit local de base: `012c877`.
+Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **5 de mayo de 2026 00:29:14 PET**. Commit local de base: `651cec5`.
 
 Resumen de mesas presidenciales por estado:
 
 | Estado | Mesas | Electores hábiles | % del universo |
 |---|---:|---:|---:|
-| Contabilizadas | 90,500 | 26,631,075 | 97.56% |
-| Para envío al JEE | 2,266 | 694,357 | 2.44% |
+| Contabilizadas | 90,821 | 26,736,715 | 97.90% |
+| Para envío al JEE | 1,945 | 588,717 | 2.10% |
 | Pendientes | 0 | 0 | 0.00% |
 
 Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:
@@ -63,34 +63,34 @@ Resumen por ámbito y región:
 
 | Estado | Ámbito | Región | Mesas | Electores hábiles | % del universo |
 |---|---|---|---:|---:|---:|
-| Para envío al JEE | PERU | LIMA | 787 | 232,845 | 0.85% |
-| Para envío al JEE | PERU | LORETO | 251 | 72,784 | 0.27% |
-| Para envío al JEE | PERU | PIURA | 163 | 47,295 | 0.18% |
+| Para envío al JEE | PERU | LIMA | 730 | 215,897 | 0.79% |
+| Para envío al JEE | PERU | LORETO | 230 | 66,571 | 0.25% |
+| Para envío al JEE | PERU | PIURA | 141 | 40,749 | 0.15% |
 | Para envío al JEE | PERU | CUSCO | 118 | 33,858 | 0.13% |
-| Para envío al JEE | PERU | SAN MARTIN | 93 | 26,797 | 0.10% |
-| Para envío al JEE | PERU | ICA | 92 | 26,895 | 0.10% |
 | Para envío al JEE | PERU | HUANUCO | 84 | 24,295 | 0.09% |
-| Para envío al JEE | PERU | ANCASH | 69 | 19,489 | 0.07% |
 | Para envío al JEE | PERU | UCAYALI | 66 | 18,983 | 0.07% |
-| Para envío al JEE | PERU | CALLAO | 64 | 18,881 | 0.07% |
-| Para envío al JEE | PERU | CAJAMARCA | 55 | 15,775 | 0.06% |
-| Para envío al JEE | PERU | LA LIBERTAD | 49 | 14,047 | 0.05% |
+| Para envío al JEE | PERU | ICA | 64 | 18,761 | 0.07% |
+| Para envío al JEE | PERU | SAN MARTIN | 55 | 15,820 | 0.06% |
+| Para envío al JEE | PERU | ANCASH | 53 | 14,997 | 0.06% |
 | Para envío al JEE | PERU | HUANCAVELICA | 48 | 13,051 | 0.05% |
+| Para envío al JEE | PERU | CALLAO | 47 | 13,861 | 0.05% |
+| Para envío al JEE | PERU | CAJAMARCA | 46 | 13,178 | 0.05% |
 | Para envío al JEE | PERU | PUNO | 26 | 7,550 | 0.03% |
 | Para envío al JEE | PERU | AMAZONAS | 23 | 6,239 | 0.02% |
 | Para envío al JEE | PERU | APURIMAC | 22 | 5,974 | 0.02% |
-| Para envío al JEE | PERU | AREQUIPA | 16 | 4,625 | 0.02% |
-| Para envío al JEE | PERU | JUNIN | 16 | 4,706 | 0.02% |
+| Para envío al JEE | PERU | LA LIBERTAD | 17 | 5,029 | 0.02% |
 | Para envío al JEE | PERU | MADRE DE DIOS | 14 | 4,144 | 0.02% |
 | Para envío al JEE | PERU | AYACUCHO | 13 | 3,638 | 0.01% |
-| Para envío al JEE | PERU | PASCO | 9 | 2,551 | 0.01% |
+| Para envío al JEE | PERU | AREQUIPA | 12 | 3,496 | 0.01% |
+| Para envío al JEE | PERU | JUNIN | 8 | 2,345 | 0.01% |
 | Para envío al JEE | PERU | MOQUEGUA | 5 | 1,473 | 0.01% |
-| Para envío al JEE | PERU | LAMBAYEQUE | 2 | 528 | 0.00% |
+| Para envío al JEE | PERU | PASCO | 4 | 1,092 | 0.00% |
+| Para envío al JEE | PERU | LAMBAYEQUE | 1 | 297 | 0.00% |
 | Para envío al JEE | PERU | TACNA | 1 | 293 | 0.00% |
-| Para envío al JEE | EXTRANJERO | AMERICA | 129 | 62,967 | 0.14% |
-| Para envío al JEE | EXTRANJERO | EUROPA | 43 | 20,922 | 0.05% |
-| Para envío al JEE | EXTRANJERO | ASIA | 4 | 1,884 | 0.00% |
-| Para envío al JEE | EXTRANJERO | OCEANIA | 4 | 1,868 | 0.00% |
+| Para envío al JEE | EXTRANJERO | AMERICA | 89 | 43,693 | 0.10% |
+| Para envío al JEE | EXTRANJERO | EUROPA | 23 | 11,107 | 0.02% |
+| Para envío al JEE | EXTRANJERO | OCEANIA | 3 | 1,401 | 0.00% |
+| Para envío al JEE | EXTRANJERO | ASIA | 2 | 925 | 0.00% |
 | Pendientes | PERU | - | 0 | 0 | 0.00% |
 | Pendientes | EXTRANJERO | - | 0 | 0 | 0.00% |
 
@@ -100,14 +100,14 @@ Votos válidos por organización política en mesas contabilizadas:
 
 | Grupo | Votos válidos | % votos válidos |
 |---|---:|---:|
-| FUERZA POPULAR | 2,804,911 | 17.13% |
-| JUNTOS POR EL PERÚ | 1,973,201 | 12.05% |
-| RENOVACIÓN POPULAR | 1,945,505 | 11.88% |
-| PARTIDO DEL BUEN GOBIERNO | 1,799,779 | 10.99% |
-| PARTIDO CÍVICO OBRAS | 1,663,544 | 10.16% |
-| Otros candidatos | 6,191,719 | 37.80% |
+| FUERZA POPULAR | 2,815,677 | 17.14% |
+| JUNTOS POR EL PERÚ | 1,977,860 | 12.04% |
+| RENOVACIÓN POPULAR | 1,952,206 | 11.88% |
+| PARTIDO DEL BUEN GOBIERNO | 1,804,794 | 10.98% |
+| PARTIDO CÍVICO OBRAS | 1,668,244 | 10.15% |
+| Otros candidatos | 6,211,404 | 37.80% |
 
-Blancos, nulos e impugnados suman **3,311,764** votos y no forman parte del denominador de votos válidos ONPE.
+Blancos, nulos e impugnados suman **3,326,510** votos y no forman parte del denominador de votos válidos ONPE.
 
 ## Alcance Actual
 
