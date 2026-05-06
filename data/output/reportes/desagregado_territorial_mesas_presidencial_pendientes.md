@@ -8,9 +8,8 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 |---|---|---|---|---|---:|---:|---:|
 | Para envío al JEE | PERU | AMAZONAS | BAGUA | IMAZA | 2 | 598 | 0.00% |
 | Para envío al JEE | PERU | AMAZONAS | CHACHAPOYAS | BALSAS | 1 | 251 | 0.00% |
-| Para envío al JEE | PERU | AMAZONAS | CHACHAPOYAS | CHACHAPOYAS | 2 | 553 | 0.00% |
+| Para envío al JEE | PERU | AMAZONAS | CHACHAPOYAS | CHACHAPOYAS | 1 | 253 | 0.00% |
 | Para envío al JEE | PERU | AMAZONAS | CHACHAPOYAS | CHILIQUIN | 1 | 263 | 0.00% |
-| Para envío al JEE | PERU | AMAZONAS | CHACHAPOYAS | LEYMEBAMBA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | AMAZONAS | CHACHAPOYAS | MAGDALENA | 1 | 279 | 0.00% |
 | Para envío al JEE | PERU | AMAZONAS | CONDORCANQUI | EL CENEPA | 2 | 546 | 0.00% |
 | Para envío al JEE | PERU | AMAZONAS | CONDORCANQUI | NIEVA | 1 | 281 | 0.00% |
@@ -21,23 +20,14 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | AMAZONAS | UTCUBAMBA | JAMALCA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | AMAZONAS | UTCUBAMBA | LONYA GRANDE | 3 | 845 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | CARHUAZ | CARHUAZ | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | ANCASH | CASMA | BUENA VISTA ALTA | 2 | 549 | 0.00% |
-| Para envío al JEE | PERU | ANCASH | CASMA | CASMA | 12 | 3,496 | 0.01% |
-| Para envío al JEE | PERU | ANCASH | CASMA | COMANDANTE NOEL | 3 | 784 | 0.00% |
-| Para envío al JEE | PERU | ANCASH | CASMA | YAUTAN | 2 | 585 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | HUARAZ | HUARAZ | 1 | 299 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | HUARAZ | INDEPENDENCIA | 1 | 296 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | HUARAZ | OLLEROS | 1 | 288 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | HUARI | CHAVIN DE HUANTAR | 1 | 297 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | HUARI | HUANTAR | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | HUARI | SAN MARCOS | 2 | 600 | 0.00% |
-| Para envío al JEE | PERU | ANCASH | HUARMEY | CULEBRAS | 1 | 294 | 0.00% |
-| Para envío al JEE | PERU | ANCASH | HUARMEY | HUARMEY | 5 | 1,495 | 0.01% |
-| Para envío al JEE | PERU | ANCASH | HUARMEY | MALVAS | 1 | 214 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | HUAYLAS | CARAZ | 1 | 299 | 0.00% |
 | Para envío al JEE | PERU | ANCASH | HUAYLAS | YURACMARCA | 1 | 284 | 0.00% |
-| Para envío al JEE | PERU | ANCASH | MARISCAL LUZURIAGA | LLUMPA | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | ANCASH | SANTA | CHIMBOTE | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | APURIMAC | ANDAHUAYLAS | ANDAHUAYLAS | 4 | 1,180 | 0.00% |
 | Para envío al JEE | PERU | APURIMAC | ANDAHUAYLAS | HUANCARAMA | 1 | 268 | 0.00% |
 | Para envío al JEE | PERU | APURIMAC | ANDAHUAYLAS | PACOBAMBA | 1 | 300 | 0.00% |
@@ -48,17 +38,13 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | APURIMAC | CHINCHEROS | SIN NOMBRE (030712) | 1 | 277 | 0.00% |
 | Para envío al JEE | PERU | APURIMAC | COTABAMBAS | TAMBOBAMBA | 2 | 599 | 0.00% |
 | Para envío al JEE | PERU | APURIMAC | GRAU | HUAYLLATI | 1 | 287 | 0.00% |
-| Para envío al JEE | PERU | APURIMAC | GRAU | MARISCAL GAMARRA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | APURIMAC | GRAU | PROGRESO | 1 | 281 | 0.00% |
 | Para envío al JEE | PERU | APURIMAC | GRAU | VIRUNDO | 1 | 244 | 0.00% |
 | Para envío al JEE | PERU | AREQUIPA | AREQUIPA | ALTO SELVA ALEGRE | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | AREQUIPA | AREQUIPA | AREQUIPA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | AREQUIPA | AREQUIPA | MARIANO MELGAR | 3 | 900 | 0.00% |
 | Para envío al JEE | PERU | AREQUIPA | AREQUIPA | PAUCARPATA | 2 | 600 | 0.00% |
-| Para envío al JEE | PERU | AREQUIPA | CAMANA | MARISCAL CACERES | 1 | 299 | 0.00% |
-| Para envío al JEE | PERU | AREQUIPA | CAYLLOMA | COPORAQUE | 1 | 197 | 0.00% |
-| Para envío al JEE | PERU | AREQUIPA | CAYLLOMA | MAJES | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | AREQUIPA | ISLAY | MOLLENDO | 2 | 600 | 0.00% |
+| Para envío al JEE | PERU | AREQUIPA | ISLAY | MOLLENDO | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | AYACUCHO | HUAMANGA | ACOCRO | 2 | 537 | 0.00% |
 | Para envío al JEE | PERU | AYACUCHO | HUAMANGA | ACOS VINCHOS | 2 | 568 | 0.00% |
 | Para envío al JEE | PERU | AYACUCHO | HUAMANGA | CARMEN ALTO | 2 | 598 | 0.00% |
@@ -71,7 +57,7 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | AYACUCHO | VILCAS HUAMAN | VISCHONGO | 1 | 276 | 0.00% |
 | Para envío al JEE | PERU | CAJAMARCA | CAJABAMBA | CACHACHI | 1 | 263 | 0.00% |
 | Para envío al JEE | PERU | CAJAMARCA | CAJABAMBA | SITACOCHA | 1 | 225 | 0.00% |
-| Para envío al JEE | PERU | CAJAMARCA | CAJAMARCA | CAJAMARCA | 2 | 595 | 0.00% |
+| Para envío al JEE | PERU | CAJAMARCA | CAJAMARCA | CAJAMARCA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | CAJAMARCA | CAJAMARCA | JESUS | 1 | 298 | 0.00% |
 | Para envío al JEE | PERU | CAJAMARCA | CAJAMARCA | LOS BAÑOS DEL INCA | 1 | 243 | 0.00% |
 | Para envío al JEE | PERU | CAJAMARCA | CELENDIN | CELENDIN | 4 | 1,183 | 0.00% |
@@ -97,7 +83,7 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | CALLAO | CALLAO | BELLAVISTA | 2 | 600 | 0.00% |
 | Para envío al JEE | PERU | CALLAO | CALLAO | CALLAO | 19 | 5,679 | 0.02% |
 | Para envío al JEE | PERU | CALLAO | CALLAO | LA PERLA | 5 | 1,500 | 0.01% |
-| Para envío al JEE | PERU | CALLAO | CALLAO | VENTANILLA | 19 | 5,484 | 0.02% |
+| Para envío al JEE | PERU | CALLAO | CALLAO | VENTANILLA | 18 | 5,258 | 0.02% |
 | Para envío al JEE | PERU | CUSCO | ACOMAYO | POMACANCHI | 2 | 588 | 0.00% |
 | Para envío al JEE | PERU | CUSCO | ACOMAYO | SANGARARA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | CUSCO | ANTA | ANCAHUASI | 3 | 886 | 0.00% |
@@ -165,22 +151,9 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | HUANCAVELICA | TAYACAJA | SALCAHUASI | 1 | 276 | 0.00% |
 | Para envío al JEE | PERU | HUANCAVELICA | TAYACAJA | SANTIAGO DE TUCUMA | 1 | 259 | 0.00% |
 | Para envío al JEE | PERU | HUANCAVELICA | TAYACAJA | SURCUBAMBA | 1 | 225 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | AMBO | AMBO | 4 | 1,200 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | AMBO | CAYNA | 1 | 275 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | AMBO | COLPAS | 1 | 246 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | AMBO | CONCHAMARCA | 2 | 549 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | AMBO | HUACAR | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | AMBO | SAN RAFAEL | 4 | 1,176 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | AMBO | TOMAY-KICHWA | 1 | 285 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | HUANUCO | AMARILIS | 11 | 3,278 | 0.01% |
-| Para envío al JEE | PERU | HUANUCO | HUANUCO | CHURUBAMBA | 1 | 286 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | HUANUCO | HUANUCO | 4 | 1,137 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | HUANUCO | PILLCO MARCA | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | HUANUCO | SAN PEDRO DE CHAULAN | 2 | 576 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | HUANUCO | SANTA MARIA DEL VALLE | 3 | 863 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | HUANUCO | YACUS | 2 | 553 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | LAURICOCHA | BAÑOS | 2 | 501 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | LAURICOCHA | JESUS | 1 | 248 | 0.00% |
+| Para envío al JEE | PERU | HUANUCO | HUANUCO | AMARILIS | 1 | 299 | 0.00% |
+| Para envío al JEE | PERU | HUANUCO | HUANUCO | HUANUCO | 1 | 237 | 0.00% |
+| Para envío al JEE | PERU | HUANUCO | LAURICOCHA | BAÑOS | 1 | 281 | 0.00% |
 | Para envío al JEE | PERU | HUANUCO | LAURICOCHA | JIVIA | 1 | 282 | 0.00% |
 | Para envío al JEE | PERU | HUANUCO | LEONCIO PRADO | CASTILLO GRANDE | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | HUANUCO | LEONCIO PRADO | DANIEL ALOMIA ROBLES | 1 | 300 | 0.00% |
@@ -192,15 +165,11 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | HUANUCO | LEONCIO PRADO | RUPA-RUPA | 3 | 900 | 0.00% |
 | Para envío al JEE | PERU | HUANUCO | MARA¿¿ON | SANTA ROSA DE ALTO YANAJANCA | 1 | 295 | 0.00% |
 | Para envío al JEE | PERU | HUANUCO | MARAÑON | HUACRACHUCO | 2 | 595 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | PACHITEA | CHAGLLA | 2 | 587 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | PACHITEA | MOLINO | 6 | 1,699 | 0.01% |
-| Para envío al JEE | PERU | HUANUCO | PACHITEA | PANAO | 6 | 1,793 | 0.01% |
-| Para envío al JEE | PERU | HUANUCO | PACHITEA | UMARI | 1 | 300 | 0.00% |
+| Para envío al JEE | PERU | HUANUCO | PACHITEA | MOLINO | 1 | 270 | 0.00% |
 | Para envío al JEE | PERU | HUANUCO | PUERTO INCA | CODO DEL POZUZO | 1 | 273 | 0.00% |
 | Para envío al JEE | PERU | HUANUCO | PUERTO INCA | HONORIA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | HUANUCO | YAROWILCA | APARICIO POMARES | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | YAROWILCA | CHORAS | 2 | 560 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | YAROWILCA | OBAS | 1 | 258 | 0.00% |
+| Para envío al JEE | PERU | HUANUCO | YAROWILCA | CHORAS | 1 | 270 | 0.00% |
 | Para envío al JEE | PERU | ICA | CHINCHA | CHINCHA ALTA | 4 | 1,200 | 0.00% |
 | Para envío al JEE | PERU | ICA | CHINCHA | CHINCHA BAJA | 1 | 279 | 0.00% |
 | Para envío al JEE | PERU | ICA | CHINCHA | EL CARMEN | 3 | 834 | 0.00% |
@@ -234,25 +203,17 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | JUNIN | CHANCHAMAYO | SAN LUIS DE SHUARO | 1 | 277 | 0.00% |
 | Para envío al JEE | PERU | JUNIN | SATIPO | MAZAMARI | 1 | 297 | 0.00% |
 | Para envío al JEE | PERU | JUNIN | SATIPO | PANGOA | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | JUNIN | SATIPO | RIO NEGRO | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | LA LIBERTAD | CHEPEN | CHEPEN | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | LA LIBERTAD | OTUZCO | HUARANCHAL | 1 | 255 | 0.00% |
 | Para envío al JEE | PERU | LA LIBERTAD | PACASMAYO | PACASMAYO | 1 | 289 | 0.00% |
 | Para envío al JEE | PERU | LA LIBERTAD | PACASMAYO | SAN PEDRO DE LLOC | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | LA LIBERTAD | PATAZ | PARCOY | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | LA LIBERTAD | TRUJILLO | LAREDO | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | LA LIBERTAD | TRUJILLO | TRUJILLO | 1 | 299 | 0.00% |
-| Para envío al JEE | PERU | LIMA | BARRANCA | BARRANCA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | LIMA | CANTA | CANTA | 1 | 286 | 0.00% |
-| Para envío al JEE | PERU | LIMA | CAÑETE | CHILCA | 3 | 817 | 0.00% |
+| Para envío al JEE | PERU | LIMA | CAÑETE | CHILCA | 2 | 530 | 0.00% |
 | Para envío al JEE | PERU | LIMA | CAÑETE | IMPERIAL | 5 | 1,500 | 0.01% |
-| Para envío al JEE | PERU | LIMA | CAÑETE | NUEVO IMPERIAL | 3 | 877 | 0.00% |
-| Para envío al JEE | PERU | LIMA | CAÑETE | SAN VICENTE DE CAÑETE | 3 | 830 | 0.00% |
+| Para envío al JEE | PERU | LIMA | CAÑETE | NUEVO IMPERIAL | 1 | 292 | 0.00% |
+| Para envío al JEE | PERU | LIMA | CAÑETE | SAN VICENTE DE CAÑETE | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | LIMA | HUARAL | CHANCAY | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | LIMA | HUARAL | HUARAL | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | LIMA | HUAURA | HUACHO | 1 | 297 | 0.00% |
-| Para envío al JEE | PERU | LIMA | HUAURA | SANTA MARIA | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | LIMA | HUAURA | VEGUETA | 1 | 298 | 0.00% |
 | Para envío al JEE | PERU | LIMA | LIMA | ANCON | 14 | 4,116 | 0.02% |
 | Para envío al JEE | PERU | LIMA | LIMA | ATE | 19 | 5,694 | 0.02% |
 | Para envío al JEE | PERU | LIMA | LIMA | BARRANCO | 2 | 594 | 0.00% |
@@ -260,14 +221,14 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | LIMA | LIMA | CHACLACAYO | 2 | 600 | 0.00% |
 | Para envío al JEE | PERU | LIMA | LIMA | CHORRILLOS | 19 | 5,681 | 0.02% |
 | Para envío al JEE | PERU | LIMA | LIMA | CIENEGUILLA | 10 | 2,994 | 0.01% |
-| Para envío al JEE | PERU | LIMA | LIMA | COMAS | 51 | 15,241 | 0.05% |
+| Para envío al JEE | PERU | LIMA | LIMA | COMAS | 30 | 8,970 | 0.03% |
 | Para envío al JEE | PERU | LIMA | LIMA | EL AGUSTINO | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | LIMA | LIMA | INDEPENDENCIA | 30 | 8,958 | 0.03% |
+| Para envío al JEE | PERU | LIMA | LIMA | INDEPENDENCIA | 27 | 8,061 | 0.03% |
 | Para envío al JEE | PERU | LIMA | LIMA | JESUS MARIA | 2 | 600 | 0.00% |
 | Para envío al JEE | PERU | LIMA | LIMA | LA MOLINA | 2 | 594 | 0.00% |
 | Para envío al JEE | PERU | LIMA | LIMA | LA VICTORIA | 34 | 10,165 | 0.04% |
 | Para envío al JEE | PERU | LIMA | LIMA | LIMA | 4 | 1,129 | 0.00% |
-| Para envío al JEE | PERU | LIMA | LIMA | LINCE | 11 | 3,154 | 0.01% |
+| Para envío al JEE | PERU | LIMA | LIMA | LINCE | 9 | 2,554 | 0.01% |
 | Para envío al JEE | PERU | LIMA | LIMA | LOS OLIVOS | 18 | 5,377 | 0.02% |
 | Para envío al JEE | PERU | LIMA | LIMA | LURIGANCHO | 17 | 4,895 | 0.02% |
 | Para envío al JEE | PERU | LIMA | LIMA | LURIN | 18 | 5,175 | 0.02% |
@@ -278,7 +239,7 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | LIMA | LIMA | PUEBLO LIBRE | 2 | 600 | 0.00% |
 | Para envío al JEE | PERU | LIMA | LIMA | PUENTE PIEDRA | 20 | 5,968 | 0.02% |
 | Para envío al JEE | PERU | LIMA | LIMA | PUNTA NEGRA | 2 | 581 | 0.00% |
-| Para envío al JEE | PERU | LIMA | LIMA | RIMAC | 24 | 7,037 | 0.03% |
+| Para envío al JEE | PERU | LIMA | LIMA | RIMAC | 15 | 4,430 | 0.02% |
 | Para envío al JEE | PERU | LIMA | LIMA | SAN BARTOLO | 1 | 293 | 0.00% |
 | Para envío al JEE | PERU | LIMA | LIMA | SAN BORJA | 3 | 897 | 0.00% |
 | Para envío al JEE | PERU | LIMA | LIMA | SAN ISIDRO | 5 | 1,491 | 0.01% |
@@ -289,11 +250,10 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | LIMA | LIMA | SAN MIGUEL | 5 | 1,495 | 0.01% |
 | Para envío al JEE | PERU | LIMA | LIMA | SANTA ANITA | 12 | 3,582 | 0.01% |
 | Para envío al JEE | PERU | LIMA | LIMA | SANTA ROSA | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | LIMA | LIMA | SANTIAGO DE SURCO | 62 | 18,282 | 0.07% |
+| Para envío al JEE | PERU | LIMA | LIMA | SANTIAGO DE SURCO | 20 | 5,997 | 0.02% |
 | Para envío al JEE | PERU | LIMA | LIMA | SURQUILLO | 1 | 299 | 0.00% |
 | Para envío al JEE | PERU | LIMA | LIMA | VILLA EL SALVADOR | 32 | 9,568 | 0.03% |
 | Para envío al JEE | PERU | LIMA | LIMA | VILLA MARIA DEL TRIUNFO | 14 | 4,078 | 0.02% |
-| Para envío al JEE | PERU | LIMA | OYON | CAUJUL | 1 | 228 | 0.00% |
 | Para envío al JEE | PERU | LORETO | LORETO | NAUTA | 5 | 1,495 | 0.01% |
 | Para envío al JEE | PERU | LORETO | LORETO | PARINARI | 2 | 600 | 0.00% |
 | Para envío al JEE | PERU | LORETO | LORETO | TIGRE | 2 | 584 | 0.00% |
@@ -362,14 +322,14 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Para envío al JEE | PERU | PIURA | MORROPON | SANTO DOMINGO | 2 | 572 | 0.00% |
 | Para envío al JEE | PERU | PIURA | PAITA | LA HUACA | 1 | 297 | 0.00% |
 | Para envío al JEE | PERU | PIURA | PAITA | PAITA | 7 | 2,008 | 0.01% |
-| Para envío al JEE | PERU | PIURA | PIURA | CASTILLA | 12 | 3,600 | 0.01% |
+| Para envío al JEE | PERU | PIURA | PIURA | CASTILLA | 9 | 2,700 | 0.01% |
 | Para envío al JEE | PERU | PIURA | PIURA | CATACAOS | 3 | 850 | 0.00% |
 | Para envío al JEE | PERU | PIURA | PIURA | CURA MORI | 2 | 595 | 0.00% |
 | Para envío al JEE | PERU | PIURA | PIURA | EL TALLAN | 1 | 228 | 0.00% |
 | Para envío al JEE | PERU | PIURA | PIURA | LA ARENA | 4 | 1,200 | 0.00% |
 | Para envío al JEE | PERU | PIURA | PIURA | LA UNION | 2 | 583 | 0.00% |
 | Para envío al JEE | PERU | PIURA | PIURA | LAS LOMAS | 2 | 530 | 0.00% |
-| Para envío al JEE | PERU | PIURA | PIURA | TAMBO GRANDE | 10 | 2,943 | 0.01% |
+| Para envío al JEE | PERU | PIURA | PIURA | TAMBO GRANDE | 9 | 2,671 | 0.01% |
 | Para envío al JEE | PERU | PIURA | PIURA | VEINTISEIS DE OCTUBRE | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | PIURA | SECHURA | CRISTO NOS VALGA | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | PIURA | SECHURA | SECHURA | 5 | 1,424 | 0.01% |
