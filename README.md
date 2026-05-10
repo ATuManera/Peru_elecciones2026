@@ -45,16 +45,16 @@ Los datos publicados tienen un ciclo de actualización distinto al del código: 
 
 ## Estado de Actualización de Datos
 
-Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **8 de mayo de 2026**, el avance de mesas contabilizadas es **99.27%**.
+Según `data/output/por_votacion/mesas_presidencial.csv` y el control SQLite local, las mesas presidenciales consolidadas cubren un universo de **92,766** mesas. Con corte de refresh al **9 de mayo de 2026**, el avance de mesas contabilizadas es **99.51%**.
 
-Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **8 de mayo de 2026 23:22:29 PET**. Commit local de base: `0b8404c`.
+Snapshot de datos: generado automáticamente por `update_readme_status.py` desde `data/output/por_votacion/mesas_presidencial.csv`; CSV modificado el **9 de mayo de 2026 23:12:48 PET**. Commit local de base: `c627725`.
 
 Resumen de mesas presidenciales por estado:
 
 | Estado | Mesas | Electores hábiles | % del universo |
 |---|---:|---:|---:|
-| Contabilizadas | 92,086 | 27,127,877 | 99.27% |
-| Para envío al JEE | 680 | 197,555 | 0.73% |
+| Contabilizadas | 92,316 | 27,195,435 | 99.51% |
+| Para envío al JEE | 450 | 129,997 | 0.49% |
 | Pendientes | 0 | 0 | 0.00% |
 
 Desagregado territorial de mesas presidenciales para envío al JEE o pendientes:
@@ -63,21 +63,18 @@ Resumen por ámbito y región:
 
 | Estado | Ámbito | Región | Mesas | Electores hábiles | % del universo |
 |---|---|---|---:|---:|---:|
-| Para envío al JEE | PERU | LIMA | 258 | 76,200 | 0.28% |
-| Para envío al JEE | PERU | PIURA | 95 | 27,275 | 0.10% |
-| Para envío al JEE | PERU | CUSCO | 72 | 20,508 | 0.08% |
-| Para envío al JEE | PERU | UCAYALI | 66 | 18,983 | 0.07% |
-| Para envío al JEE | PERU | CAJAMARCA | 39 | 11,182 | 0.04% |
+| Para envío al JEE | PERU | LIMA | 142 | 42,077 | 0.15% |
+| Para envío al JEE | PERU | PIURA | 94 | 26,975 | 0.10% |
+| Para envío al JEE | PERU | CUSCO | 53 | 14,870 | 0.06% |
 | Para envío al JEE | PERU | SAN MARTIN | 39 | 11,207 | 0.04% |
-| Para envío al JEE | PERU | ICA | 37 | 10,928 | 0.04% |
-| Para envío al JEE | PERU | APURIMAC | 13 | 3,596 | 0.01% |
+| Para envío al JEE | PERU | CAJAMARCA | 36 | 10,331 | 0.04% |
+| Para envío al JEE | PERU | UCAYALI | 31 | 8,668 | 0.03% |
 | Para envío al JEE | PERU | MADRE DE DIOS | 13 | 3,844 | 0.01% |
 | Para envío al JEE | PERU | AYACUCHO | 11 | 3,078 | 0.01% |
-| Para envío al JEE | PERU | LORETO | 11 | 3,079 | 0.01% |
+| Para envío al JEE | PERU | APURIMAC | 10 | 2,738 | 0.01% |
 | Para envío al JEE | PERU | CALLAO | 8 | 2,361 | 0.01% |
-| Para envío al JEE | PERU | JUNIN | 5 | 1,473 | 0.01% |
 | Para envío al JEE | PERU | ANCASH | 4 | 1,197 | 0.00% |
-| Para envío al JEE | PERU | HUANUCO | 3 | 879 | 0.00% |
+| Para envío al JEE | PERU | ICA | 3 | 886 | 0.00% |
 | Para envío al JEE | PERU | HUANCAVELICA | 2 | 596 | 0.00% |
 | Para envío al JEE | PERU | LA LIBERTAD | 1 | 300 | 0.00% |
 | Para envío al JEE | PERU | MOQUEGUA | 1 | 287 | 0.00% |
@@ -93,14 +90,14 @@ Votos válidos por organización política en mesas contabilizadas:
 
 | Grupo | Votos válidos | % votos válidos |
 |---|---:|---:|
-| FUERZA POPULAR | 2,856,263 | 17.17% |
-| JUNTOS POR EL PERÚ | 1,998,222 | 12.01% |
-| RENOVACIÓN POPULAR | 1,981,947 | 11.91% |
-| PARTIDO DEL BUEN GOBIERNO | 1,826,784 | 10.98% |
-| PARTIDO CÍVICO OBRAS | 1,687,347 | 10.14% |
-| Otros candidatos | 6,288,196 | 37.79% |
+| FUERZA POPULAR | 2,864,665 | 17.17% |
+| JUNTOS POR EL PERÚ | 2,001,577 | 12.00% |
+| RENOVACIÓN POPULAR | 1,986,658 | 11.91% |
+| PARTIDO DEL BUEN GOBIERNO | 1,831,167 | 10.98% |
+| PARTIDO CÍVICO OBRAS | 1,691,764 | 10.14% |
+| Otros candidatos | 6,304,357 | 37.80% |
 
-Blancos, nulos e impugnados suman **3,382,226** votos y no forman parte del denominador de votos válidos ONPE.
+Blancos, nulos e impugnados suman **3,392,871** votos y no forman parte del denominador de votos válidos ONPE.
 
 ## Alcance Actual
 
