@@ -7,7 +7,6 @@ CSV descargable: [data/output/reportes/desagregado_territorial_mesas_presidencia
 | Estado | Ámbito | Región | Provincia | Distrito | Mesas | Electores hábiles | % del universo |
 |---|---|---|---|---|---:|---:|---:|
 | Para envío al JEE | PERU | LA LIBERTAD | PATAZ | PARCOY | 1 | 300 | 0.00% |
-| Para envío al JEE | PERU | PIURA | SULLANA | QUERECOTILLO | 2 | 592 | 0.00% |
 | Para envío al JEE | EXTRANJERO | - | - | - | 0 | 0 | 0.00% |
 | Pendientes | PERU | - | - | - | 0 | 0 | 0.00% |
 | Pendientes | EXTRANJERO | - | - | - | 0 | 0 | 0.00% |
